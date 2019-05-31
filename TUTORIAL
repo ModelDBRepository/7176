@@ -1,0 +1,80 @@
+#!/bin/sh
+
+##
+## $Id: TUTORIAL 1.1.1.4 Thu, 04 Apr 2002 11:55:56 +0200 hugo $
+##
+
+##############################################################################
+##'
+##' Purkinje tutorial
+##'
+##' (C) 1998-2002 BBF-UIA
+##'
+##' see our site at http://www.bbf.uia.ac.be/ for more information regarding
+##' the Purkinje cell and genesis simulation software.
+##'
+##'
+##' functional ideas ... Erik De Schutter, erik@bbf.uia.ac.be
+##' genesis coding ..... Hugo Cornelis, hugo@bbf.uia.ac.be
+##'
+##' general feedback ... Reinoud Maex, Erik De Schutter
+##'
+##############################################################################
+
+
+# TUTORIAL : shell script to give transparant initialization and configuration
+
+
+# if tab files do not exist
+
+if [ ! -f Purk_CaP.tab ]; then
+
+    # make config
+
+    genesis makeconfig.g
+fi
+
+# copy default configuration to current
+
+#cp simulation.defaults simulation.config
+
+# while we should simulate the network
+
+SIMULATE=1
+
+while [ "$SIMULATE" = "1" ]
+do
+    # remove any previous simulation status
+
+    rm 2>/dev/null simulation.status
+
+    # start the tutorial
+
+    genesis TUTORIAL.g
+
+    # genesis terminated normally
+
+    if [ -f simulation.status ]; then
+
+	# check if we should restart simulation
+
+	SIMULATE=`cat simulation.status`
+
+    else
+
+	# end simulation
+
+	SIMULATE=0
+    fi
+done
+
+# if simulation status file exists
+
+if [ -f simulation.status ]; then
+
+    # remove simulation status file
+
+    rm simulation.status
+fi
+
+

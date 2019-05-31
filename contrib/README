@@ -1,0 +1,6 @@
+This directory contains various files with contributions from other
+people.  Take a look at the different scripts and see if you can use
+them one way or the other.  If you use one of the contrib scripts, you
+are on your own : perhaps they have been tested with an other version
+of the Purkinje cell tutorial, they can be misbehaving.  No support
+will be given for the scripts in these directories.

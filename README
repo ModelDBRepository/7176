@@ -1,0 +1,57 @@
+$Id: README 1.2.1.3 Sat, 13 May 2000 12:14:21 +0200 hugo $
+
+README file for the Tutorial simulation of a cerebellar Purkinje cell
+
+This tutorial is based upon a GENESIS simulation of a cerebellar Purkinje 
+cell, modeled and fine-tuned by Erik de Schutter. The tutorial assumes that
+you have a basic knowledge of the Purkinje cell and its synaptic inputs. It 
+gives visual insight in how different properties as concentrations and 
+channel conductances vary and interact within a real Purkinje cell.
+
+In order to run the simulation, you need the following : 
+
+1) A fast computer (Pentium200 or SPARC20) with enough memory installed (at
+   least 32Mb - 64Mb, depending on which and how many programs are running)
+
+2) Genesis 2.2 installed and correctly configured.
+
+3) A graphical display with at least a resolution of 1024*768
+
+4) the UNIX shell commands : sort, touch
+
+
+To explore the tutorial, do the following :
+
+1) Make room for the graphical output : move your shell window to the lower
+   right hand corner of your display.
+
+2) Change to the directory where the TUTORIAL.g script resides. If you are
+   reading this file, you should be in the correct directory.  The tutorial
+   will create some files in this directory, so you will need to have write
+   privileges.  If the tutorial is installed in a system directory for which
+   you do not have write permission, copy the tutorial files to a directory
+   in which you are allowed to create files.
+
+3) At the shell prompt, type "./TUTORIAL".  (This Unix shell script will
+   create any needed files and will start GENESIS using the TUTORIAL.g
+   script.  You do not need to start GENESIS yourself.)  After a long
+   initialization period, a window with a Purkinje cell and a control panel
+   will appear. To move on, click the 'Help' button in the control panel.
+   This will popup the on-line help window.  These instructions, which you
+   will need to read before running the tutorial, are contained in the file
+   "help.txt".
+
+Ambitious users can run this tutorial using different model setup files
+(all the files titled Purk_*, including the morphology file, can be
+changed).  Before you do so you need to reconfigure the simulation by 
+running "genesis makeconfig.g". After some diagnostic messages, you 
+should return to the shell prompt.
+
+For feedback write:
+Concepts and documentation: Erik de Schutter - erik@bbf.uia.ac.be
+Bugs:                       Hugo Cornelis - hugo@bbf.uia.ac.be
+
+Consult our webpages at bbf-www.uia.ac.be for relevant publications and
+additional documentation concerning the model scripts.
+
+Copyright for all the scripts: Born-Bunge Foundation - UA 1998-1999.

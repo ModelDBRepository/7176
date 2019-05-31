@@ -1,0 +1,215 @@
+
+xgraph.g,1090
+function XGraphPlotColorXGraphPlotColor54,1075
+function XGraphNextColorXGraphNextColor78,1380
+function XGraphPlotTitle(XGraphPlotTitle111,1944
+function XGraphNextPlotMode(XGraphNextPlotMode199,3385
+function XGraphPlotCompartment(XGraphPlotCompartment254,4341
+function XGraphRemoveCompartment(XGraphRemoveCompartment714,13302
+function XGraphClear(XGraphClear773,14272
+function XGraphResetAxesXGraphResetAxes844,15297
+function XGraphCancelScalesXGraphCancelScales866,15597
+function XGraphSetScalesXGraphSetScales880,15779
+function XGraphUpdateScalesXGraphUpdateScales915,16403
+function XGraphShowScalesXGraphShowScales945,16899
+function XGraphHideAddPlotXGraphHideAddPlot964,17149
+function XGraphSetAddPlot(XGraphSetAddPlot987,17608
+function XGraphShowAddPlotXGraphShowAddPlot1068,18763
+function XGraphToggleOverlay(XGraphToggleOverlay1094,19220
+function XGraphCreateXGraphCreate1122,19692
+function XGraphResetXGraphReset1348,23930
+function XGraphSetBoundaries(XGraphSetBoundaries1508,26806
+function XGraphSwitchChanMode(XGraphSwitchChanMode1564,27653
+
+xcell.g,1832
+function XCellElectrodeName(XCellElectrodeName146,4971
+function XCellAddElectrode(XCellAddElectrode196,6047
+function XCellPrepareElectrodesXCellPrepareElectrodes256,6929
+function XCellRemoveElectrode(XCellRemoveElectrode298,7638
+function XCellRemoveElectrodesXCellRemoveElectrodes371,8897
+function XCellSetupElectrodes(XCellSetupElectrodes412,9681
+function XCellSetupGraph(XCellSetupGraph488,10985
+function XCellSwitchChanMode(XCellSwitchChanMode522,11540
+function XCellDeleteMessagesXCellDeleteMessages578,12402
+function XCellSetupMessages(XCellSetupMessages616,13122
+function XCellSetupCompMessages(XCellSetupCompMessages697,14615
+function XCellSetupExcIGEMessages(XCellSetupExcIGEMessages763,15838
+function XCellSetupInhIGEMessages(XCellSetupInhIGEMessages870,17937
+function XCellSetupSpineVmMessages(XCellSetupSpineVmMessages956,19648
+function XCellSetupButtons(XCellSetupButtons1059,21628
+function XCellSetOutput(XCellSetOutput1193,23805
+function XCellSetBoundaries(XCellSetBoundaries1517,29202
+function XCellSetChannelMode(XCellSetChannelMode1569,29913
+function XCellCancelConfigureXCellCancelConfigure1594,30287
+function XCellSetConfigureXCellSetConfigure1608,30475
+function XCellShowConfigureXCellShowConfigure1628,30780
+function XCellCreateToggle(XCellCreateToggle1656,31281
+function XCellCreateChannelLibraryXCellCreateChannelLibrary1710,32164
+function XCellCreateButtonsXCellCreateButtons1801,33645
+function XCellCreateColorDialogsXCellCreateColorDialogs2014,37974
+function XCellCreateHeadingsXCellCreateHeadings2042,38507
+function XCellCreateDrawXCellCreateDraw2066,38860
+function XCellResetXCellReset2113,39593
+function XCellCBAddPlot(XCellCBAddPlot2169,40443
+function XCellCBRemovePlot(XCellCBRemovePlot2231,41755
+function XCellCreateXCellCreate2252,42097
+
+utility.g,141
+function CountArgumentsCountArguments43,908
+function LastArgumentLastArgument61,1119
+function NumberOfElements(NumberOfElements80,1463
+
+settings.g,2448
+function SettingsBasketSettingsBasket48,950
+function SettingsBasketHideSettingsBasketHide66,1194
+function SettingsBasketSetStrength(SettingsBasketSetStrength86,1506
+function SettingsBasketCreate(SettingsBasketCreate108,1871
+function SettingsClimbingSettingsClimbing163,2929
+function SettingsClimbingHideSettingsClimbingHide181,3185
+function SettingsClimbingSetDelay(SettingsClimbingSetDelay201,3533
+function SettingsClimbingSetStrength(SettingsClimbingSetStrength223,3903
+function SettingsClimbingCreate(SettingsClimbingCreate245,4280
+function SettingsIClampSettingsIClamp305,5484
+function SettingsIClampHideSettingsIClampHide418,7861
+function SettingsIClampSetCurrent(SettingsIClampSetCurrent436,8140
+function SettingsIClampSetOffset(SettingsIClampSetOffset475,8756
+function SettingsIClampSetPeriod(SettingsIClampSetPeriod514,9380
+function SettingsIClampSetTarget(SettingsIClampSetTarget552,10018
+function SettingsIClampSetWidth(SettingsIClampSetWidth591,10626
+function SettingsIClampSwitchSettingsIClampSwitch634,11569
+function SettingsIClampToggleModeSettingsIClampToggleMode702,12800
+function SettingsIClampCreate(SettingsIClampCreate762,13997
+function SettingsParallelSettingsParallel892,16608
+function SettingsParallelHideSettingsParallelHide912,16924
+function SettingsParallelLocalSet(SettingsParallelLocalSet931,17240
+function SettingsParallelLocalChooseSettingsParallelLocalChoose1008,18564
+function SettingsParallelLocalCancelSettingsParallelLocalCancel1033,19002
+function SettingsParallelLocalFailSettingsParallelLocalFail1054,19351
+function SettingsParallelSetLevel(SettingsParallelSetLevel1078,19746
+function SettingsParallelUpdateLevelSettingsParallelUpdateLevel1114,20370
+function SettingsParallelUpdateWindowSettingsParallelUpdateWindow1142,20882
+function SettingsParallelToggleModeSettingsParallelToggleMode1191,21695
+function SettingsParallelSetSynapses(SettingsParallelSetSynapses1229,22316
+function SettingsParallelCreate(SettingsParallelCreate1251,22710
+function SettingsVivoSettingsVivo1439,26688
+function SettingsVivoHideSettingsVivoHide1459,26975
+function UpdateFrequenciesUpdateFrequencies1482,27574
+function SettingsVivoPfFrequencies(SettingsVivoPfFrequencies1587,29409
+function SettingsVivoScFrequencies(SettingsVivoScFrequencies1609,29728
+function SettingsVivoCreate(SettingsVivoCreate1632,30096
+function SettingsCreateSettingsCreate1719,31763
+
+mapping.g,91
+function MappingCreate(MappingCreate42,938
+function MappingDeleteMappingDelete270,5318
+
+makeconfig.g,22
+str cellpath 45,1221
+
+info.g,218
+function InfoHelpInfoHelp39,786
+function InfoHelpCreate(InfoHelpCreate55,984
+function InfoCreditsInfoCredits102,1676
+function InfoCreditsCreate(InfoCreditsCreate118,1892
+function InfoCreateInfoCreate165,2628
+
+control.g,554
+function CreateRefresh(CreateRefresh106,2137
+function PurkinjeExitPurkinjeExit136,2531
+function PurkinjeResetPurkinjeReset159,2807
+function PurkinjeRunPurkinjeRun194,3301
+function SetOutputRate(SetOutputRate227,3833
+function SetRunTime(SetRunTime254,4222
+function ClearGraphs(ClearGraphs293,4745
+function ToggleAction(ToggleAction313,5010
+function ToggleMode(ToggleMode385,6169
+function ControlRefreshControlRefresh516,8204
+function CurrentTimeSwitchCurrentTimeSwitch531,8428
+function ControlPanelCreateControlPanelCreate591,9351
+
+config.g,235
+function ConfigFilename(ConfigFilename46,1102
+function ConfigHostType(ConfigHostType69,1574
+function ConfigWrite(ConfigWrite138,2669
+function ConfigWriteUpdate(ConfigWriteUpdate263,4808
+function ConfigRead(ConfigRead361,6442
+
+cell.g,0
+
+actions.g,1254
+function ActionBasket(ActionBasket53,1042
+function ActionBasketInit(ActionBasketInit99,1780
+function ActionBasketStart(ActionBasketStart137,2380
+function ActionClimbing(ActionClimbing154,2610
+function ActionClimbingInit(ActionClimbingInit335,5744
+function ActionClimbingStart(ActionClimbingStart399,7430
+function ActionIClamp(ActionIClamp423,7848
+function ActionIClampSetGenerator(ActionIClampSetGenerator451,8479
+function ActionIClampCreateGenerator(ActionIClampCreateGenerator479,9087
+function ActionIClampInit(ActionIClampInit539,10051
+function ActionIClampStart(ActionIClampStart565,10497
+function ActionIClampStopActionIClampStop661,12208
+function ActionParallelCreateBigDistrActionParallelCreateBigDistr700,13076
+function ActionParallelCreateSmallDistrActionParallelCreateSmallDistr810,15148
+function ActionParallelCreateDistrActionParallelCreateDistr926,17552
+function ActionParallelCreateLocalActionParallelCreateLocal995,19096
+function ActionParallelInit(ActionParallelInit1069,20502
+function ActionParallelDistr(ActionParallelDistr1104,21192
+function ActionParallelLocal(ActionParallelLocal1312,24578
+function ActionParallelStart(ActionParallelStart1361,25641
+function ActionsInitActionsInit1443,27281
+
+TUTORIAL.g,54
+str cellpath 45,1314
+for (i = 0; i <= 8; i 256,5923
+
+Purk_syn.g,55
+function make_Purkinje_synsmake_Purkinje_syns33,1044
+
+Purk_const.g,163
+int tab_xdivs = 149; int tab_xfills 17,440
+float tab_xmin = -0.10; float tab_xmax 19,560
+float tab_xmin = -0.10; float tab_xmax = 0.05; float Ca_tab_max 19,560
+
+Purk_cicomp.g,118
+function make_Purkinje_compsmake_Purkinje_comps32,1127
+function make_Purkinje_spinesmake_Purkinje_spines260,10308
+
+Purk_chansave.g,95
+function make_chan(make_chan44,1506
+function make_Purkinje_chansmake_Purkinje_chans82,2818
+
+Purk_chanload.g,95
+function make_chan(make_chan45,1567
+function make_Purkinje_chansmake_Purkinje_chans82,2704
+
+bounds.g,137
+function BoundsInit(BoundsInit48,1021
+function BoundElementName(BoundElementName178,3822
+function BoundsRereadBoundsReread235,4620
+
+stack.g,309
+function StackCreate(StackCreate51,968
+function StackDelete(StackDelete78,1361
+function StackNumberOfElements(StackNumberOfElements98,1632
+function StackPop(StackPop116,1893
+function StackPush(StackPush171,2574
+function StackTopElement(StackTopElement209,3075
+function StackTop(StackTop233,3373
+
+contrib/passive/fileio_act.g,46
+function makefileoutputmakefileoutput18,445
+
+contrib/passive/Purk_pconst.g,182
+float dt 28,961
+int tab_xdivs = 149; int tab_xfills 29,979
+float tab_xmin = -0.10; float tab_xmax 31,1099
+float tab_xmin = -0.10; float tab_xmax = 0.05; float Ca_tab_max 31,1099
+
+contrib/passive/PASSIVE.g,54
+str cellpath 48,1359
+for (i = 0; i <= 8; i 242,5489
+
+contrib/passive/ACTIVE.g,54
+str cellpath 48,1340
+for (i = 0; i <= 8; i 242,5471

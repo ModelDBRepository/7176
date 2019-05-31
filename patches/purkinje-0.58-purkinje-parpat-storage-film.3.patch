@@ -1,0 +1,3321 @@
+prcs: Producing diffs from 0.58 to parpat-storage-film.3.
+Index: 0.58/xgraph.g
+--- 0.58/xgraph.g Mon, 24 Jul 2000 17:38:55 +0200 hugo (purkinje/20_xgraph.g 1.13.1.1.1.1.2.1.2.1 644)
++++ parpat-storage-film.3/xgraph.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/20_xgraph.g 1.13.1.1.1.1.2.1.2.1.1.1 640)
+@@ -23,6 +23,11 @@
+ 
+ // xgraph.g : xgraph functionality
+ 
++
++//v default color for plots
++
++int iDefaultPlotColor = 38
++
+ int include_xgraph
+ 
+ if ( {include_xgraph} == 0 )
+@@ -49,7 +54,7 @@
+ 
+ function XGraphPlotColor
+ 
+-	//- get next available color
++	//- get next color
+ 
+ 	int color = {getfield /xgraphs/graph cNextColor}
+ 
+@@ -79,7 +84,7 @@
+ 
+ 	//- modulo 64 to get a legal value
+ 
+-	color = {color + 18} % 64
++	color = {color + 19} % 64
+ 
+ 	//- increment the color count
+ 
+@@ -194,7 +199,7 @@
+ 
+ function XGraphNextPlotMode(mode)
+ 
+-str path
++str mode
+ 
+ 	//v result of function
+ 
+@@ -1172,6 +1177,7 @@
+ 		xmax {runtime / 1000} \
+ 		ymin -0.1 \
+ 		ymax 0.05 \
++		bg white \
+ 		XUnits "t (sec)" 
+ 
+ 	//- add a button to clear the graph
+@@ -1228,7 +1234,7 @@
+ 	//- add an initialized field for allocated colors
+ 
+ 	addfield /xgraphs/graph cNextColor -descr "next color to allocate"
+-	setfield /xgraphs/graph cNextColor 1
++	setfield /xgraphs/graph cNextColor {iDefaultPlotColor}
+ 
+ 	//- set clock to use for graph
+ 
+@@ -1481,6 +1487,12 @@
+ 	//- register next output mode
+ 
+ 	XGraphNextPlotMode {xcOutputValue}
++
++	// reset next plot color
++
++	//! don't do this, read the comments in XCellCBAddPlot why.
++
++	//setfield /xgraphs/graph cNextColor {iDefaultPlotColor}
+ end
+ 
+ 
+Index: 0.58/xcell.g
+--- 0.58/xcell.g Thu, 30 Mar 2000 16:43:16 +0200 hugo (purkinje/21_xcell.g 1.1.1.6.1.5.2.6.1.1.2.1 644)
++++ parpat-storage-film.3/xcell.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/21_xcell.g 1.1.1.6.1.5.2.6.1.1.2.1.1.2 640)
+@@ -117,6 +117,9 @@
+ //////////////////////////////////////////////////////////////////////////////
+ 
+ 
++include movie.g
++
++
+ //v bool to indicate first toggle for tabchannel has been created
+ 
+ int bButtonsCreated = 0
+@@ -129,6 +132,10 @@
+ 
+ str strXCLibrary = "XCLib"
+ 
++//v movie handle for xcell widget
++
++str xcellMovieHandle = ""
++
+ 
+ ///
+ /// SH:	XCellElectrodeName
+@@ -1964,13 +1971,46 @@
+ 		-offlabel "No Electrodes" \
+ 		-script "XCellSetupElectrodes <v>"
+ 
+-	//- create label as seperator
++/*
++** original code from -r 0
++**
++*/
++/* 	//- create label as seperator */
++
++/* 	create xlabel /xcell/sep3 \ */
++/* 		-xgeom 70% \ */
++/* 		-ygeom 6:graph.top \ */
++/* 		-wgeom 30% \ */
++/* 		-title "" */
++
++	//- create button for film settings
+ 
+-	create xlabel /xcell/sep3 \
++	create xbutton /xcell/filmSettings \
+ 		-xgeom 70% \
+-		-ygeom 6:graph.top \
+-		-wgeom 30% \
+-		-title ""
++		-ygeom 4:graph.top \
++		-wgeom 20% \
++		-title "Settings" \
++		-script "echo Film settings"
++
++	//- create toggle to enable filming
++
++	create xtoggle /xcell/filmToggle \
++		-xgeom 0:filmSettings.right \
++		-ygeom 4:graph.top \
++		-wgeom 10% \
++		-title "Film" \
++		-script "XCellCBScheduleMovie <value>"
++
++	//- remove previous movie images
++
++	sh "rm 2>/dev/null -f /tmp/movies/*"
++
++	//- create movie elements
++
++	sh "mkdir 2>/dev/null /tmp/movies"
++
++	xcellMovieHandle \
++		= {MovieCreateElements /xcell/ /tmp/movies/purkinje 0 0}
+ 
+ 	//- create toggle to change normalized / absolute output
+ 
+@@ -2177,6 +2217,10 @@
+ 	//! the field cNextColor should be considered private,
+ 	//! but read the comments below to understand why I had to
+ 	//! read it as if it is public.
++	//!
++	//! With this public read it becomes more difficult to decide if the
++	//! graph should do a reset (and skipping back to the default color)
++	//! Modularity with genesis scripts can be tough...
+ 
+ 	//- get allocated color
+ 
+@@ -2210,6 +2254,66 @@
+ 
+ 			XCellAddElectrode {path} {electrode} {color}
+ 		end
++	end
++end
++
++
++///
++/// SH:	XCellCBScheduleMovie
++///
++/// PA:	movieHandle...:	movie handle to schedule
++///	bOn...........: 1 == schedule, 0 == do not schedule
++///
++/// DE:	Rechedule a movie handle
++///
++/// NO: It seems impossible to pass variable from Xodus script fields,
++///	hardcoded {{xcellMovieHandle}}
++///
++
++function XCellCBScheduleMovie(bOn)
++
++int bOn
++
++	//- if turn on
++
++	if ( {bOn} == 1 )
++
++		//- diag's
++
++		echo "Enabling movie "{{xcellMovieHandle}}
++
++		//- schedule
++
++		MovieSchedule \
++			{{xcellMovieHandle}} \
++			/tmp/movies/purkinje \
++			{getstat -step} \
++			10000000
++
++	//- else if turn off
++
++	elif ( {bOn} == 0 )
++
++		//- diag's
++
++		echo "Disabling movie "{{xcellMovieHandle}}
++
++		//- schedule
++
++		MovieSchedule \
++			{{xcellMovieHandle}} \
++			/tmp/movies/purkinje \
++			0 \
++			0
++
++	//- else
++
++	else
++
++		//- diag's
++
++		echo "XCellCBScheduleMovie : Wrong mode requested for movie"
++
+ 	end
+ end
+ 
+Index: 0.58/settings.g
+--- 0.58/settings.g Wed, 05 Jan 2000 11:55:14 +0100 hugo (purkinje/23_settings.g 1.8.2.2.1.1.1.1.1.1 644)
++++ parpat-storage-film.3/settings.g Fri, 29 Sep 2000 20:06:06 +0200 hugo (purkinje/23_settings.g 1.8.2.2.1.1.1.1.1.1.2.2 640)
+@@ -23,6 +23,12 @@
+ 
+ // settings.g : control panel settings
+ 
++
++//v normal path for xcell script
++
++str cbXCell
++
++
+ int include_settings
+ 
+ if ( {include_settings} == 0 )
+@@ -33,9 +39,13 @@
+ include actions.g
+ 
+ 
+-//v normal path for xcell script
++function SettingsPFStored
+ 
+-str cbXCell
++end
++
++function SettingsPFNovel
++
++end
+ 
+ 
+ ///
+@@ -815,7 +825,7 @@
+ 
+ 	create xlabel nooffset \
+ 		-ygeom 3:pulse \
+-		-title "Offset not available"
++		-title "Amplitude not available"
+ 
+ 	//- hide the offset dialog
+ 
+@@ -825,7 +835,7 @@
+ 
+ 	create xlabel nowidth \
+ 		-ygeom 3:offset \
+-		-title "Width not  available"
++		-title "Width not available"
+ 
+ 	//- hide the width dialog
+ 
+@@ -1476,7 +1486,7 @@
+ 
+ 	str element
+ 
+-	foreach element ( {el {cellpath}/##[][TYPE=synchan]} )
++	foreach element ( {el {cellpath}/##[][TYPE=channelC3]} )
+ 
+ 		//- for vitro mode
+ 
+Index: 0.58/info.g
+--- 0.58/info.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/28_info.g 1.4.2.1 644)
++++ parpat-storage-film.3/info.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/28_info.g 1.4.2.1.1.1 640)
+@@ -125,7 +125,7 @@
+ 		-xgeom 200 \
+ 		-ygeom 330 \
+ 		-wgeom 450 \
+-		-hgeom 200
++		-hgeom 230
+ 
+ 	//- make created form current element
+ 
+Index: 0.58/credits.txt
+--- 0.58/credits.txt Mon, 25 Jan 1999 16:30:02 +0100 hugo (purkinje/30_credits.tx 1.1 644)
++++ parpat-storage-film.3/credits.txt Sun, 11 Jul 1999 22:37:50 +0200 hugo (purkinje/30_credits.tx 1.1.1.2 640)
+@@ -2,9 +2,9 @@
+ Purkinje tutorial : credits
+ ---------------------------
+ 
++Purkinje cell model. Erik De Schutter and Jim M. Bower
+ functional ideas ... Erik De Schutter, erik@bbf.uia.ac.be
+ genesis coding ..... Hugo Cornelis, hugo@bbf.uia.ac.be
++documentation ...... Hugo Cornelis, Erik De Schutter
+ 
+-general feedback ... Reinoud Maex, Erik De Schutter
+-
+-
++general feedback ... Reinoud Maex, Volker Steuber
+Index: 0.58/control.g
+--- 0.58/control.g Mon, 24 Jul 2000 16:00:59 +0200 hugo (purkinje/31_control.g 1.14.1.1.2.1.1.1.1.1.1.1.1.2 664)
++++ parpat-storage-film.3/control.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/31_control.g 1.14.1.1.2.1.1.1.1.1.1.1.1.2.1.1 640)
+@@ -181,10 +181,20 @@
+ 
+ 	int steps = time / 1000 / dt
+ 
+-	//- give an informational message
+-
+ 	echo "Running simulation for "{steps}" steps"
+ 
++	// prepare the input files
++
++	filecnt = {rand_int {filenum/2 - 75} {filenum/2 - 1}}
++        infile1 = (infile) @ (filecnt) @ ".dat"
++	echo stored PF pattern is {infile1}
++        setfield /infileStored nx {spinenum} ny 1 filename {infile1} leave_open 1
++        
++        filecnt = {rand_int {filenum/2} {filenum/2 + 74}}
++        infile1 = (infile) @ (filecnt) @ ".dat"
++	echo novel PF pattern is {infile1}
++        setfield /infileNovel nx {spinenum} ny 1 filename {infile1} leave_open 1
++
+ 	//- do the simulation steps
+ 
+ 	step {steps} -background
+@@ -339,6 +349,18 @@
+ 
+ 		ActionClimbingStart {strength}
+ 
++	elif (action == 4)
++
++		echo "Presenting stored PF pattern"
++
++	        ActionPFPatternStart "/infileStored"
++
++	elif (action == 5)
++
++		echo "Presenting novel PF pattern"
++
++		ActionPFPatternStart "/infileNovel"
++
+ 	//- else we have an unkown action
+ 
+ 	else
+@@ -640,7 +662,7 @@
+ 
+ 	create xdialog time \
+ 		-value {runtime} \
+-		-title "time (msec) : " \
++		-title "Time (msec) : " \
+ 		-script "SetRunTime <v>"
+ 
+ 	//- create the time step dialog
+@@ -756,18 +778,48 @@
+ 		-title "Settings" \
+ 		-script "SettingsIClamp"
+ 
++
++	create xbutton pfstored \
++		-wgeom 70% \
++		-title "Stored PF pattern" \
++		-script "ToggleAction 4"
++
++	//- create settings button
++
++	create xbutton PFStoredSettings \
++		-xgeom 0:last.right \
++		-ygeom 0:iClamp \
++		-wgeom 30% \
++		-title "Settings" \
++		-script "SettingsPFStored"
++
++
++	create xbutton pfnovel \
++		-wgeom 70% \
++		-title "Novel PF pattern" \
++		-script "ToggleAction 5"
++
++	//- create settings button
++
++	create xbutton PFNovelSettings \
++		-xgeom 0:last.right \
++		-ygeom 0:pfstored \
++		-wgeom 30% \
++		-title "Settings" \
++		-script "SettingsPFNovel"
++
+ 	//- create the parallel fiber button
+ 
+ 	create xbutton parallel \
+ 		-wgeom 70% \
+-		-title "Activate parallel fibers" \
++		-title "Random synchr PFs" \
+ 		-script "ToggleAction 1"
+ 
+ 	//- create settings button
+ 
+ 	create xbutton parallelSettings \
+ 		-xgeom 0:last.right \
+-		-ygeom 0:iClamp \
++		-ygeom 0:pfnovel \
+ 		-wgeom 30% \
+ 		-title "Settings" \
+ 		-script "SettingsParallel"
+@@ -806,7 +858,7 @@
+ 
+ 	//- create information label
+ 
+-	create xlabel info \
++/*	create xlabel info \
+ 		-title "Simulation information"
+ 
+ 	//- create help button
+@@ -825,6 +877,7 @@
+ 		-wgeom 50% \
+ 		-title "Credits" \
+ 		-script "InfoCredits"
++*/
+ 
+ 	//- show the control panel
+ 
+Index: 0.58/bounds.txt
+--- 0.58/bounds.txt Thu, 18 Mar 1999 14:33:34 +0100 hugo (purkinje/34_bounds.txt 1.3 644)
++++ parpat-storage-film.3/bounds.txt Sun, 11 Jul 1999 20:24:33 +0200 hugo (purkinje/34_bounds.txt 1.4 640)
+@@ -8,7 +8,7 @@
+ ##
+ ## (C) 1998-2002 BBF-UIA
+ ##
+-## see our site at http://bbf-www.uia.ac.be/ for more information regarding
++## see our site at http://www.bbf.uia.ac.be/ for more information regarding
+ ## the Purkinje cell and genesis simulation software.
+ ##
+ ##
+@@ -37,50 +37,46 @@
+ # 6-9. Same as 2-5, normalized mode
+ #
+ #
+-# 1	2	3	4	5	6	7	8	9
++# 1		2	3	4	5	6	7	8	9
+ #
+-_Vm	-0.09	0.02	-0.1	0.05	-0.09	0.02	-0.1	0.05
+-Ca_pool_Ca	0	0.001	0	0.001	0	0.001	0	0.001
+-# adapted to normalized mode
+-CaP_Ik	5e-12	3e-11	0	1e-10	0.0025	0.0015	0	0.05
+-# end
+-CaT_Ik	4e-13	6e-13	0	1.3e-12	4e-13	6e-13	0	1.3e-12
+-K2_Ik	-4e-11	-1e-13	-6e-11	0	-4e-11	-1e-13	-6e-11	0
+-KA_Ik	-2e-11	0	-3e-10	0	-2e-11	0	-3e-10	0
+-KC_Ik	-1e-11	-7e-11	-2e-10	0	-1e-11	-7e-11	-2e-10	0
+-KM_Ik	-9e-13	0	-9e-12	0	-9e-13	0	-9e-12	0
+-Kdr_Ik	-5e-10	0	-7e-10	0	-5e-10	0	-7e-10	0
+-NaF_Ik	0	1.6e-09	0	7e-10	0	1.6e-09	0	7e-10
+-NaP_Ik	2e-11	2e-10	0	4e-10	2e-11	2e-10	0	4e-10
+-h1_Ik	2e-12	1e-11	0	6e-11	2e-12	1e-11	0	6e-11
+-h2_Ik	6e-13	1.8e-12	0	1e-11	6e-13	1.8e-12	0	1e-11
+-excitatory_Ik	0	2.8e-11	0	4e-11	0	2.8e-11	0	4e-11
+-inhibitory_Ik	-6e-10	0	-1e-09	0	-6e-10	0	-1e-09	0
+-CaP_Gk	1e-11	6e-11	0	2e-10	1e-11	6e-11	0	2e-10
+-CaT_Gk	3.5e-12	4.8e-12	0	1e-11	3.5e-12	4.8e-12	0	1e-11
+-K2_Gk	0	2e-10	0	3e-10	0	2e-10	0	3e-10
+-KA_Gk	3e-09	1.5e-06	0	6e-09	3e-09	1.5e-06	0	6e-09
+-KC_Gk	5e-11	3e-10	0	7e-10	5e-11	3e-10	0	7e-10
+-KM_Gk	2e-12	1.4e-11	0	2.5e-10	2e-12	1.4e-11	0	2.5e-10
+-Kdr_Gk	0	1e-09	0	2.5e-08	0	1e-09	0	2.5e-08
+-NaF_Gk	2e-09	1.2e-08	0	3.5e-08	2e-09	1.2e-08	0	3.5e-08
+-NaP_Gk	1e-10	2e-09	0	4e-09	1e-10	2e-09	0	4e-09
+-h1_Gk	7.5e-11	4e-10	0	1.6e-09	7.5e-11	4e-10	0	1.6e-09
+-h2_Gk	3e-11	6e-11	0	2e-10	3e-11	6e-11	0	2e-10
+-# adapted to normalized mode
+-excitatory_Gk	0	6e-10	0	1e-09	0	5e-09	0	8e-09
+-inhibitory_Gk	0	3e-09	0	1e-08	0	1.5e-08	0	3e-08
+-# end 
+-CaP_Ek	0.117	0.127	0.07	0.14	0.117	0.127	0.07	0.14
+-CaT_Ek	0.11	0.126	0.07	0.14	0.11	0.126	0.07	0.14
+-K2_Ek	0	1	0	1	0	1	0	1
+-KA_Ek	0	1	0	1	0	1	0	1
+-KC_Ek	0	1	0	1	0	1	0	1
+-KM_Ek	0	1	0	1	0	1	0	1
+-Kdr_Ek	0	1	0	1	0	1	0	1
+-NaF_Ek	0	1	0	1	0	1	0	1
+-NaP_Ek	0	1	0	1	0	1	0	1
+-h1_Ek	0	1	0	1	0	1	0	1
+-h2_Ek	0	1	0	1	0	1	0	1
+-excitatory_Ek	0	1	0	1	0	1	0	1
+-inhibitory_Ek	0	1	0	1	0	1	0	1
++_Vm		-0.08	0.02	-0.1	0.05	-0.08	0.02	-0.1	0.05
++Ca_pool_Ca	0.0	0.005	0.0	0.010	0.0	0.005	0.0	0.010
++CaP_Ik		0.0	1e-10	0.0	6e-10	0.0	0.05	0.0	0.08
++CaT_Ik		0.0	1e-12	0.0	6e-11	0.0	0.003	0	0.004
++K2_Ik		-1e-11	0.0	-2e-11	0.0	-0.02	0.0	-0.04	0.0
++KA_Ik		-5e-12	0.0	-5e-10	0.0	-0.001	0.0	-0.004	0.0
++KC_Ik		-1e-11	0.0	-4e-10	0.0	-0.003	0.0	-0.005	0.0
++KM_Ik		-2e-13	0.0	-4e-13	0.0	-0.02	0.0	-0.03	0.0
++Kdr_Ik		-2e-11	0.0	-2e-8	0.0	-0.0005	0.0	-0.001	0.0
++NaF_Ik		0.0	1.6e-9	0.0	3e-7	0.0	0.0001	0.0	0.001
++NaP_Ik		0.0	2e-10	0.0	2e-9	0.0	0.02	0.0	0.07
++h1_Ik		0.0	2e-12	0.0	2e-11	-0.001	0.002	-0.004	0.004
++h2_Ik		0.0	1e-12	0.0	1e-11	-0.001	0.001	-0.002	0.002
++excitatory_Ik	0.0	2e-11	0.0	4e-11	0.0	3e-10	0.0	1e-9
++inhibitory_Ik	-6e-10	0.0	-1e-09	0.0	-3e-10	0.0	-5e-10	0.0
++CaP_Gk		0.0	2e-9	0.0	6e-9	0.0	0.5	0.0	1.0
++CaT_Gk		0.0	1e-10	0.0	4e-10	0.0	0.02	0.0	0.03
++K2_Gk		0.0	2e-10	0.0	1e-9	0.0	0.5	0.0	0.8
++KA_Gk		0.0	5e-11	0.0	7e-9	0.0	0.01	0.0	0.03
++KC_Gk		0.0	5e-10	0.0	5e-9	0.0	0.05	0.0	0.05
++KM_Gk		0.0	1e-11	0.0	5e-10	0.0	0.3	0.0	0.5
++Kdr_Gk		0.0	1e-9	0.0	3e-7	0.0	0.01	0.0	0.05
++NaF_Gk		0.0	1e-7	0.0	6e-6	0.0	0.01	0.0	0.03
++NaP_Gk		0.0	1e-8	0.0	3e-8	0.0	0.1	0.0	1.0
++h1_Gk		0.0	2e-10	0.0	1e-9	0.0	0.02	0.0	0.1
++h2_Gk		0.0	1e-10	0.0	5e10	0.0	0.005	0.0	0.01
++excitatory_Gk	0.0	5e-10	0.0	7e-10	0.0	5e-09	0.0	8e-09
++inhibitory_Gk	0.0	1e-09	0.0	1e-08	0.0	1e-08	0.0	2e-08
++CaP_Ek		0.10	0.14	0.07	0.14	0.10	0.14	0.07	0.14
++CaT_Ek		0.10	0.14	0.07	0.14	0.10	0.14	0.07	0.14
++K2_Ek		-0.09	1	-0.09	1	-0.09	1	-0.09	1
++KA_Ek		-0.09	-0.08	-0.09	-0.08	-0.09	-0.08	-0.09	-0.08
++KC_Ek		-0.09	-0.08	-0.09	-0.08	-0.09	-0.08	-0.09	-0.08
++KM_Ek		-0.09	-0.08	-0.09	-0.08	-0.09	-0.08	-0.09	-0.08
++Kdr_Ek		-0.09	-0.08	-0.09	-0.08	-0.09	-0.08	-0.09	-0.08
++NaF_Ek		0.04	0.05	0.04	0.05	0.04	0.05	0.04	0.05
++NaP_Ek		0.04	0.05	0.04	0.05	0.04	0.05	0.04	0.05
++h1_Ek		-0.04	-0.02	-0.04	-0.02	-0.04	-0.02	-0.04	-0.02
++h2_Ek		-0.04	-0.02	-0.04	-0.02	-0.04	-0.02	-0.04	-0.02
++excitatory_Ek	-0.01	0.01	-0.01	0.01	-0.01	0.01	-0.01	0.01
++inhibitory_Ek	-0.09	-0.07	-0.09	-0.07	-0.09	-0.07	-0.09	-0.07
+Index: 0.58/actions.g
+--- 0.58/actions.g Mon, 24 Jul 2000 16:00:59 +0200 hugo (purkinje/35_actions.g 1.13.1.1 644)
++++ parpat-storage-film.3/actions.g Fri, 29 Sep 2000 20:06:06 +0200 hugo (purkinje/35_actions.g 1.13.1.3 640)
+@@ -23,6 +23,11 @@
+ 
+ // actions.g : parallel fiber and climbing fiber actions
+ 
++
++include mapping.g
++
++int PFPatternSteps = 0
++
+ int include_actions
+ 
+ if ( {include_actions} == 0 )
+@@ -30,8 +35,7 @@
+ 	include_actions = 1
+ 
+ 
+-include mapping.g
+-
++int PFPatternDelaySteps = bidelay / dt
+ 
+ //v climbing step delay while climbing fiber is firing
+ 
+@@ -42,6 +46,93 @@
+ int climbingSynapse = 0
+ 
+ 
++function ActionPFPattern(inelement)
++
++str inelement
++
++    if (PFPatternSteps == 0)
++
++  	for (i = 0; {i <= spinenum - 1}; i = i + 1)
++	  setfield {cellpath}/par_presyn[{i}] z {getfield {inelement} val[{i}][{0}]}
++        end
++        PFPatternSteps = 1
++   
++    elif (PFPatternSteps == 1)
++	
++	for (i = 0; {i <= spinenum - 1}; i = i + 1)
++	  setfield {cellpath}/par_presyn[{i}] z 0
++        end
++        PFPatternSteps = 2
++
++    elif ((PFPatternSteps > 1) && (PFPatternSteps < PFPatternDelaySteps))
++
++	PFPatternSteps = PFPatternSteps + 1
++
++    elif (PFPatternSteps == PFPatternDelaySteps)
++	
++	setfield {cellpath}/bc_presyn z {biamp}
++	PFPatternSteps = PFPatternDelaySteps + 1
++
++    elif (PFPatternSteps > PFPatternDelaySteps)
++	
++	setfield {cellpath}/bc_presyn z 0
++	PFPatternSteps = 0
++	setfield /actions/pfpattern command ""
++
++    end
++
++end
++
++
++
++function ActionPFPatternInit(path)
++   
++str path
++
++    create script_out {path}pfpattern
++    setfield /actions/pfpattern command ""
++
++    // create {spinenum} presynaptic elements for synchronous PF input
++    // add messages to the AMPA receptors
++    for (i = 0; {i <= spinenum - 1}; i = i + 1)
++        create neutral {cellpath}/par_presyn[{i}]
++	disable {cellpath}/par_presyn[{i}]
++	setfield {cellpath}/par_presyn[{i}] z 0
++	addmsg {cellpath}/par_presyn[{i}] \
++               {cellpath}/spine[{i}]/head[{i}]/par ACTIVATION z
++    end
++
++    // create the basket cell presynaptic element
++    // add messages to GABA receptors
++    create neutral {cellpath}/bc_presyn
++    disable {cellpath}/bc_presyn
++    setfield {cellpath}/bc_presyn z 0
++    addmsg {cellpath}/bc_presyn {cellpath}/soma/basket ACTIVATION z
++    addmsg {cellpath}/bc_presyn {cellpath}/main[]/basket ACTIVATION z
++
++    // create the input elements
++    create disk_in /infileStored
++    create disk_in /infileNovel
++
++
++
++end
++
++
++
++function ActionPFPatternStart(inelement)
++
++str inelement
++
++    PFPatternSteps = 0
++
++    setfield /actions/pfpattern \
++             command "ActionPFPattern "{inelement}
++
++end
++
++
++
+ ///
+ /// SH:	ActionBasket
+ ///
+@@ -92,6 +183,7 @@
+ end
+ 
+ 
++
+ ///
+ /// SH:	ActionBasketInit
+ ///
+@@ -149,7 +241,7 @@
+ 	//- set field in script object
+ 
+ 	setfield /actions/basket \
+-		command "ActionBasket "{level / dt}
++		command "ActionBasket "{level}
+ 
+ 	// call reset on the script to avoid bugs
+ 
+@@ -423,7 +515,7 @@
+ 	//- set field in script object
+ 
+ 	setfield /actions/climbing \
+-		command "ActionClimbing "{strength / dt}
++		command "ActionClimbing "{strength}
+ 
+ 	// call reset on the script to avoid bugs
+ 
+@@ -1359,7 +1451,7 @@
+ 		//- set field of script object
+ 
+ 		setfield /actions/parallel \
+-			command "ActionParallelLocal "{branch}" "{level / dt}
++			command "ActionParallelLocal "{branch}" "{level}
+ 
+ 		// call reset on the script to avoid bugs
+ 
+@@ -1414,7 +1506,7 @@
+ 		//- set field of script object
+ 
+ 		setfield /actions/parallel \
+-			command "ActionParallelDistr "{number}" "{level / dt}
++			command "ActionParallelDistr "{number}" "{level}
+ 
+ 		// call reset on the script to get around some bugs
+ 
+@@ -1452,6 +1544,10 @@
+ 	//- initialize synchronous parallel fiber
+ 
+ 	ActionParallelInit /actions/
++
++	ActionPFPatternInit /actions/
++	
++
+ end
+ 
+ 
+Index: 0.58/TUTORIAL.g
+--- 0.58/TUTORIAL.g Tue, 04 Jan 2000 15:16:41 +0100 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6.3.1.1.1 640)
++++ parpat-storage-film.3/TUTORIAL.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6.3.1.1.1.2.2 640)
+@@ -1,4 +1,5 @@
+ //genesis - Purkinje cell version M9 genesis2 master script
++// Copyright: Theoretical Neurobiology, Born-Bunge Foundation - UA, 1998-1999.
+ //
+ // $Id: purkinje-0.58-purkinje-parpat-storage-film.3.patch 1.2 Thu, 04 Apr 2002 11:55:56 +0200 hugo $
+ //
+@@ -22,14 +23,14 @@
+ 
+ //- give header
+ 
+-echo "-----------------------------------------------------------------"
++echo "-------------------------------------------------------------------------"
+ echo
+ echo "Purkinje tutorial, version " -n
+ // $Format: "echo \"$ProjectVersion$ ($ProjectDate$)\""$
+echo "Release1.3.2 (Thu, 04 Apr 2002 12:46:38 +0200)"
+ echo "                       Simulation script"
+ echo
+-echo "-----------------------------------------------------------------"
++echo "-------------------------------------------------------------------------"
+ 
+ //- include default definitions
+ 
+@@ -263,6 +264,10 @@
+ //- set clock for refresh elements
+ 
+ setclock 10 {dt * 239}
++
++//- set clock for movie elements
++
++setclock 11 {dt * outputRate}
+ 
+ //- set delay in steps for climbing fiber
+ 
+Index: 0.58/README
+--- 0.58/README Mon, 27 Dec 1999 19:02:49 +0100 hugo (purkinje/37_README 1.2.1.1 644)
++++ parpat-storage-film.3/README Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/37_README 1.2.1.1.1.1 640)
+@@ -1,12 +1,12 @@
+ $Id: purkinje-0.58-purkinje-parpat-storage-film.3.patch 1.2 Thu, 04 Apr 2002 11:55:56 +0200 hugo $
+ 
+-README file for the Tutorial Simulation of a cerebellar Purkinje cell
++README file for the Tutorial simulation of a cerebellar Purkinje cell
+ 
+ This tutorial is based upon a GENESIS simulation of a cerebellar Purkinje 
+ cell, modeled and fine-tuned by Erik de Schutter. The tutorial assumes that
+ you have a basic knowledge of the Purkinje cell and its synaptic inputs. It 
+-gives visual insights in how different properties as concentrations and 
+-channel conductances vary and interfere within a real Purkinje cell.
++gives visual insight in how different properties as concentrations and 
++channel conductances vary and interact within a real Purkinje cell.
+ 
+ In order to run the simulation, you need the following : 
+ 
+@@ -26,21 +26,32 @@
+    right hand corner of your display.
+ 
+ 2) Change to the directory where the TUTORIAL.g script resides. If you are
+-   reading this file, you will probably be in the wright directory.
++   reading this file, you should be in the correct directory.  The tutorial
++   will create some files in this directory, so you will need to have write
++   privileges.  If the tutorial is installed in a system directory for which
++   you do not have write permission, copy the tutorial files to a directory
++   in which you are allowed to create files.
++
++3) At the shell prompt, type "./TUTORIAL".  (This Unix shell script will
++   create any needed files and will start GENESIS using the TUTORIAL.g
++   script.  You do not need to start GENESIS yourself.)  After a long
++   initialization period, a window with a Purkinje cell and a control panel
++   will appear. To move on, click the 'Help' button in the control panel.
++   This will popup the on-line help window.  These instructions, which you
++   will need to read before running the tutorial, are contained in the file
++   "help.txt".
++
++Ambitious users can run this tutorial using different model setup files
++(all the files titled Purk_*, including the morphology file, can be
++changed).  Before you do so you need to reconfigure the simulation by 
++running "genesis makeconfig.g". After some diagnostic messages, you 
++should return to the shell prompt.
++
++For feedback write:
++Concepts and documentation: Erik de Schutter - erik@bbf.uia.ac.be
++Bugs:                       Hugo Cornelis - hugo@bbf.uia.ac.be
+ 
+-3) Type at the shell prompt : "TUTORIAL".
++Consult our webpages at bbf-www.uia.ac.be for relevant publications and
++additional documentation concerning the model scripts.
+ 
+-
+-If you get an error message like this one :
+-
+-<Purk_chanload> line 65 <- <Purk_chanload> line 80 <- <TUTORIAL.g> line 142
+-** Error -  can't read file 'Purk_NaF.tab': wrong version #50331648
+-
+-Then retry making a configuration file for the tutorial by typing at the UNIX 
+-shell prompt "genesis makeconfig.g". Afterwards type "genesis TUTORIAL.g". 
+-If this does not work, consult your system administrator or a person with
+-knowledge of UNIX and the Genesis neural simulator.
+-
+-
+-Erik de Schutter - erik@bbf.uia.ac.be
+-Hugo Cornelis - hugo@bbf.uia.ac.be
++Copyright for all the scripts: Born-Bunge Foundation - UA 1998-1999.
+Index: 0.58/Purk_syn.g
+--- 0.58/Purk_syn.g Mon, 27 Dec 1999 18:17:48 +0100 hugo (purkinje/38_Purk_syn.g 1.3 644)
++++ parpat-storage-film.3/Purk_syn.g Fri, 29 Sep 2000 20:06:06 +0200 hugo (purkinje/38_Purk_syn.g 1.5 640)
+@@ -10,8 +10,9 @@
+ ** E. De Schutter and J.M. Bower: An active membrane model of the
+ ** cerebellar Purkinje cell: II. Simulation of synaptic responses.
+ ** Journal of Neurophysiology  71: 401-419 (1994).
+-** http://bbf-www.uia.ac.be/TNB/TNB_pub7.html
++** http://www.bbf.uia.ac.be/TNB/TNB_pub7.html
+ ** Consult this reference for sources of experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
+ */
+ 
+ // CONSTANTS
+@@ -44,14 +45,14 @@
+ 
+ 	/* asynchronously firing channel */
+     if (!({exists GABA}))
+-		create synchan GABA
++		create channelC3 GABA
+     end
+     setfield GABA Ek {E_GABA} tau1 {0.93e-3} tau2 {26.50e-3}  \
+         gmax {G_GABA} frequency {0.0}
+ 
+ 	/* synchronously firing channel */
+     if (!({exists GABA2}))
+-		create synchan GABA2
++		create channelC2 GABA2
+     end
+     setfield GABA2 Ek {E_GABA} tau1 {0.93e-3} tau2 {26.50e-3}  \
+         gmax {GB_GABA}
+@@ -64,7 +65,7 @@
+ 
+ 	/* asynchronously firing channel */
+     if (!({exists non_NMDA}))
+-		create synchan non_NMDA
++		create channelC3 non_NMDA
+     end
+ 
+     setfield non_NMDA Ek {E_non_NMDA} tau1 {0.50e-3} tau2 {1.20e-3}  \
+@@ -72,7 +73,7 @@
+ 
+ 	/* synchronously firing channel */
+     if (!({exists non_NMDA2}))
+-        create synchan non_NMDA2
++        create channelC2 non_NMDA2
+     end
+ 
+     setfield non_NMDA2 Ek {E_non_NMDA} tau1 {0.50e-3} tau2 {1.20e-3}
+Index: 0.58/Purk_const.g
+--- 0.58/Purk_const.g Mon, 27 Dec 1999 18:17:48 +0100 hugo (purkinje/39_Purk_const 1.3 644)
++++ parpat-storage-film.3/Purk_const.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/39_Purk_const 1.4 640)
+@@ -14,9 +14,14 @@
+ echo Using Purkinje 2M9 preferences. Crank Nicholson method.
+ /* variables controlling hsolve integration */
+ float dt = 2.0e-5
+-int tab_xdivs = 149; int tab_xfills = 2999
++int tab_xdivs = 149
++int tab_xfills = 2999
++
+ /* The model is quite sensitive to these values in NO_INTERP (caclmode=0) */
+-float tab_xmin = -0.10; float tab_xmax = 0.05; float Ca_tab_max = 0.300
++float tab_xmin = -0.10
++float tab_xmax = 0.05
++float Ca_tab_max = 0.300
++
+ // only used for proto channels
+ float GNa = 1, GCa = 1, GK = 1, Gh = 1
+ /* cable parameters */
+Index: 0.58/Purk_cicomp.g
+--- 0.58/Purk_cicomp.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/40_Purk_cicom 1.2 644)
++++ parpat-storage-film.3/Purk_cicomp.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/40_Purk_cicom 1.3 640)
+@@ -13,12 +13,13 @@
+ ** E. De Schutter and J.M. Bower: An active membrane model of the
+ ** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
+ ** Journal of Neurophysiology  71: 375-400 (1994).
+-** http://bbf-www.uia.ac.be/TNB/TNB_pub8.html
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
+ ** E. De Schutter and J.M. Bower: An active membrane model of the
+ ** cerebellar Purkinje cell: II. Simulation of synaptic responses.
+ ** Journal of Neurophysiology  71: 401-419 (1994).
+-** http://bbf-www.uia.ac.be/TNB/TNB_pub7.html
++** http://www.bbf.uia.ac.be/TNB/TNB_pub7.html
+ ** Consult these references for sources of experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
+ */
+ 
+ 
+Index: 0.58/Purk_chansave.g
+--- 0.58/Purk_chansave.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/41_Purk_chans 1.2 644)
++++ parpat-storage-film.3/Purk_chansave.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/41_Purk_chans 1.3 640)
+@@ -12,8 +12,9 @@
+ ** E. De Schutter and J.M. Bower: An active membrane model of the
+ ** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
+ ** Journal of Neurophysiology  71: 375-400 (1994).
+-** http://bbf-www.uia.ac.be/TNB/TNB_pub8.html
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
+ ** Consult this reference for sources of equations and experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
+ */
+ 
+ 
+Index: 0.58/Purk_chanload.g
+--- 0.58/Purk_chanload.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/42_Purk_chanl 1.2 644)
++++ parpat-storage-film.3/Purk_chanload.g Wed, 27 Sep 2000 11:39:30 +0200 hugo (purkinje/42_Purk_chanl 1.3 640)
+@@ -13,8 +13,9 @@
+ ** E. De Schutter and J.M. Bower: An active membrane model of the
+ ** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
+ ** Journal of Neurophysiology  71: 375-400 (1994).
+-** http://bbf-www.uia.ac.be/TNB/TNB_pub8.html
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
+ ** Consult this reference for sources of equations and experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
+ */
+ 
+ 
+@@ -126,7 +127,7 @@
+     /* Equations from the literature */
+     /* delayed rectifier type K current eq1
+     ** Refs: Yamada (his equations are also for 22C) */
+-    if (!{exists Purk_Kdr})
++    if (!{exists Purk_dr})
+ 	    create tabchannel Purk_Kdr
+ 	    setfield Purk_Kdr Ek {EK} Gbar {GK} Ik 0 Gk 0 Xpower 2  \
+ 		Ypower 1 Zpower 0
+Index: 0.58/random.g
+--- 0.58/random.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/random.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/10_random.g 1.1 640)
+@@ -0,0 +1,10 @@
++function rand_int(min, max)
++int min
++int max
++  
++  int randint = {round {rand {min} {max}}}
++
++  return randint
++
++end
++
+Index: 0.58/XPATREC9A.g
+--- 0.58/XPATREC9A.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/XPATREC9A.g Fri, 29 Sep 2000 20:06:06 +0200 hugo (purkinje/b/11_XPATREC9A. 1.2 640)
+@@ -0,0 +1,266 @@
++//genesis - Purkinje cell version M9 genesis2 master script
++
++// use the time to seed random number generator
++randseed
++
++// one spine for each of the 1474 spiny compts
++int spinenum = 1474
++int syncnum = 1000
++
++int filenum = 200
++int filecnt
++
++float bidelay = 0.001
++float biamp = 0.0
++
++float phertz = 28
++float ihertz = 1000
++
++int i, j, k, l
++float t
++str name, hstr
++include defaults
++include random
++
++str cellfile = "../patrecog/pfiles/Purk2M9s.p"
++str infile = "../patrecog/pfinput/PFeff_" @ (filenum) @ "_" @ (syncnum) @ "_"
++str infile1
++
++cellpath = "/Purkinje"
++
++include Purk_hficonst
++EREST_ACT = -0.055
++
++/* special scripts  to create the prototypes */
++include Purk_chanload
++//include Purk_chansave
++include Purk_cicomp 
++include Purk_syn 
++
++//- set default output rate
++
++int outputRate = 10
++
++//- set default chanmode for solver : normalized
++
++int iChanMode = 5
++
++//- set default mode : in vitro
++// changed to in vivo
++
++int iVVMode = 0
++
++//- set default for current : current clamp on
++// changed to off
++
++int iCurrentMode = 0
++
++//- speed of climbing fiber volley (in sec)
++
++float delay = 0.00020
++
++//- strength of climbing fiber synapses
++
++float strength = 1.0
++
++//- speed of climbing fiber volley (in steps == delay / dt)
++//- this variable is set later on when dt is defined in an other module
++
++int delaysteps = 0.00020 / 1
++
++//- include the utility module, it is needed by multiple others modules,
++//- but since I do not like multiple includes, I include it here.
++
++include utility.g
++
++//- include the config module
++
++include config.g
++
++//- default we do not update the config file
++
++int bUpdateConfig = 0
++
++include info.g
++include bounds.g
++include config.g
++include control.g
++include xgraph.g
++include xcell.g
++
++//- ensure that all elements are made in the library
++
++ce /library
++
++//- make prototypes of channels and synapses
++
++make_Purkinje_chans
++make_Purkinje_syns
++
++//- set the firing frequencies at the library level
++//- this forces the hsolve object to reserve space for these fields
++
++setfield /library/GABA frequency {ihertz}
++setfield /library/non_NMDA frequency {phertz}
++
++//- add fields to the library elements to respect the vivo / vitro mode
++
++addfield /library/GABA freqmode -description "frequency operation mode"
++addfield /library/non_NMDA freqmode -description "frequency operation mode"
++
++//- set the added fields to the current vivo/vitro mode
++
++setfield /library/GABA freqmode {iVVMode}
++setfield /library/non_NMDA freqmode {iVVMode}
++
++//- add fields to distinguish between inhibition and excitation
++
++addfield /library/GABA synmode -description "synaptic mode"
++addfield /library/non_NMDA synmode -description "synaptic mode"
++
++//- set field to "in" for inhibition
++
++setfield /library/GABA synmode "in"
++
++//- set field to "ex" for excitation
++
++setfield /library/non_NMDA synmode "ex"
++
++//- make prototypes of compartements and spines
++
++make_Purkinje_comps
++make_Purkinje_spines
++
++//- read cell data from .p file
++
++readcell {cellfile} {cellpath}
++
++//- read configuration file
++
++ConfigRead {cellfile} {cellpath}
++
++//- initialize actions
++
++ActionsInit
++
++//- initialize boundaries
++
++BoundsInit "bounds.txt"
++
++//- set simulation clocks
++for (i = 0; i <= 8; i = i + 1)
++	setclock {i} {dt}
++end
++
++//- set the output clock
++
++setclock 9 {dt * outputRate}
++
++//- set clock for refresh elements
++
++setclock 10 {dt * 239}
++
++
++//- set delay in steps for climbing fiber
++
++delaysteps = {delay / dt}
++
++//- setup the hines solver
++
++echo preparing hines solver {getdate}
++ce {cellpath}
++create hsolve solve
++
++//- We change to current element solve and then set the fields of the parent
++//- (solve) to get around a bug in the "." parsing of genesis
++
++ce solve
++
++setfield . \
++        path "../##[][TYPE=compartment]" \
++        comptmode 1 \
++        chanmode {iChanMode} \
++        calcmode 0
++
++/*
++setfield . \
++        path "../b#[][TYPE=compartment],../main[][TYPE=compartment]" \
++        comptmode 1 \
++        chanmode {iChanMode} \
++        calcmode 0
++*/
++
++
++//- create all info widgets
++
++InfoCreate
++
++//- create all settings widgets
++
++SettingsCreate
++
++//- setup the solver with all messages from the settings
++
++call /Purkinje/solve SETUP
++
++//- Use method to Crank-Nicolson
++
++setmethod 11
++
++//- go back to simulation element
++
++ce {cellpath}
++
++//- set colorscale
++
++xcolorscale rainbow3
++
++//- create the xcell widget
++
++XCellCreate
++
++//- create the graph widget
++
++XGraphCreate
++
++//- set default state
++
++XCellReset
++
++//- reset graph
++
++XGraphReset
++
++//- create the control panel
++
++ControlPanelCreate
++
++//- reset all elements
++
++reset
++
++//- to further initialize all elements (e.g. colors of xcell element)
++//- we do one step in the simulation and then a reset
++
++step 1
++
++//- update the firing frequencies for stellate and parallel fibers
++
++UpdateFrequencies
++
++//- reset all elements
++
++reset
++
++// switch to in vivo mode
++
++ToggleMode 1
++
++echo Purkinje cell equilibration...
++
++step 0.1 -time
++
++setfield /xgraphs/graph xmin 0.1
++xshow /xgraphs
++XCellCBAddPlot /Purkinje/soma
++
+Index: 0.58/Purk_ticonst.g
+--- 0.58/Purk_ticonst.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_ticonst.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/12_Purk_ticon 1.1 640)
+@@ -0,0 +1,75 @@
++//genesis  - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/* This file defines important simulation parameters, including gmax
++** and Ek for all channels.  Everything uses SI units. */
++
++// version with tonic inhibition 
++// note that ihertz has to be set to 0 in the main script
++
++echo Using Purkinje 2M9 preferences. Crank Nicholson method.
++/* variables controlling hsolve integration */
++float dt = 2.0e-5
++int tab_xdivs = 149
++int tab_xfills = 2999
++
++/* The model is quite sensitive to these values in NO_INTERP (caclmode=0) */
++float tab_xmin = -0.10
++float tab_xmax = 0.05
++float Ca_tab_max = 0.300
++
++// only used for proto channels
++float GNa = 1, GCa = 1, GK = 1, Gh = 1
++/* cable parameters */
++float CM = 0.0164 		// *9 relative to passive
++float RMs = 1.000 		// /3.7 relative to passive comp
++float RMd = 3.0                 // standard value, no GABA channels on main dendrite and spines
++float RMtd = 0.8902            // tonic inhibition to thick dendrite
++float RMsd = 0.4323            // tonic inhibition to spiny dendrite
++float RA = 2.50
++/* preset constants */
++float ELEAK = -0.0800 		// Ek value used for the leak conductance
++float EREST_ACT = -0.0680 	// Vm value used for the RESET
++/* concentrations */
++float CCaO = 2.4000 		//external Ca as in normal slice Ringer
++float CCaI = 0.000040		//internal Ca in mM
++//diameter of Ca_shells
++float Shell_thick = 0.20e-6
++float CaTau = 0.00010	 	// Ca_concen tau
++/* Currents: Reversal potentials in V and max conductances S/m^2 */
++/* Codes: s=soma, m=main dendrite, t=thick dendrite, d=spiny dendrite */
++float ENa = 0.045
++float GNaFs = 75000.0
++float GNaPs = 10.0
++float ECa = 0.0125*{log {CCaO/CCaI}} // 0.135 V
++float GCaTs = 5.00
++float GCaTm = 5.00
++float GCaTt = 5.00
++float GCaTd = 5.00
++float GCaPm = 45.0
++float GCaPt = 45.0
++float GCaPd = 45.0
++float EK = -0.085
++float GKAs = 150.0
++float GKAm = 20.0
++float GKdrs = 6000.0
++float GKdrm = 600.0
++float GKMs = 0.400
++float GKMm = 0.100
++float GKMt = 0.130
++float GKMd = 0.130
++float GKCm = 800.0
++float GKCt = 800.0
++float GKCd = 800.0
++float GK2m = 3.90
++float GK2t = 3.90
++float GK2d = 3.90
++float Eh = -0.030
++float Ghs = 3.00
++/* synapses: */
++float E_GABA = -0.080
++float G_GABA = 0.0//70.0/dt
++float GB_GABA = 20.0/dt
++float E_non_NMDA = 0.000
++float G_par_syn = 750.0/dt
++float G_cli_syn = 150.0/dt
+Index: 0.58/Purk_spiticomp.g
+--- 0.58/Purk_spiticomp.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_spiticomp.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/13_Purk_spiti 1.1 640)
+@@ -0,0 +1,264 @@
++//genesis - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/**********************************************************************
++** Sets up active membrane Purkinje cell compartment prototypes 
++**  and dendritic spine prototypes.
++** E. De Schutter, Caltech, 1991-1992
++** This version sets up a passive soma and active dendritic compartments 
++**  with stellate cell synapses.
++**********************************************************************/
++
++/* References:
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
++** Journal of Neurophysiology  71: 375-400 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell: II. Simulation of synaptic responses.
++** Journal of Neurophysiology  71: 401-419 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub7.html
++** E. De Schutter and J.M. Bower: Simulated responses of cerebellar
++** Purkinje cells are independent of the dendritic location of granule 
++** cell synaptic inputs. Proceedings of the National Academy of Sciences 
++** USA 91: 4736-4740 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub6.html
++** Consult these references for sources of experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
++*/
++
++function make_Purkinje_comps
++/* separate function so we can have local variables */
++
++	float len, dia, surf, shell_vol, shell_dia
++	int i
++
++	echo making Purkinje compartment library...
++
++	/* make spherical soma prototype with sodium currents*/
++	len = 0.00e-6
++	dia = 20.0e-6
++	surf = dia*dia*{PI}
++	shell_dia = 2*{Shell_thick}
++	shell_vol = (3*dia*dia*shell_dia - 3*dia*shell_dia*shell_dia + shell_dia*shell_dia*shell_dia)*{PI}/6.0
++	if (!({exists Purk_soma}))
++		create compartment Purk_soma
++	end
++	setfield Purk_soma Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})}  \
++	    Em {ELEAK} initVm {EREST_ACT} Rm {{RMs}/surf} inject 0.0  \
++	    dia {dia} len {len}
++
++    /* make main dendrite prototype with fast Ca currents */
++    len = 200.00e-6
++    dia = 2.00e-6
++    surf = len*dia*{PI}
++    shell_vol = (2*dia*shell_dia - shell_dia*shell_dia)*len*{PI}/4.0
++    if (!({exists Purk_maind}))
++        create compartment Purk_maind
++    end
++    setfield Purk_maind Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++        Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++        dia {dia} len {len}
++
++    if (!({exists Purk_thickd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_thickd
++    end
++    if (!({exists Purk_spinyd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_spinyd
++    end
++
++	copy Purk_CaT Purk_maind/CaT
++	addmsg Purk_maind Purk_maind/CaT VOLTAGE Vm
++	addmsg Purk_maind/CaT Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaT Gbar {{GCaTm}*surf}
++	copy Purk_KA Purk_maind/KA
++	addmsg Purk_maind Purk_maind/KA VOLTAGE Vm
++	addmsg Purk_maind/KA Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KA Gbar {{GKAm}*surf}
++	copy Purk_Kdr Purk_maind/Kdr
++	addmsg Purk_maind Purk_maind/Kdr VOLTAGE Vm
++	addmsg Purk_maind/Kdr Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/Kdr Gbar {{GKdrm}*surf}
++	copy Purk_KM Purk_maind/KM
++	addmsg Purk_maind Purk_maind/KM VOLTAGE Vm
++	addmsg Purk_maind/KM Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KM Gbar {{GKMm}*surf}
++	copy Purk_CaP Purk_maind/CaP
++	addmsg Purk_maind Purk_maind/CaP VOLTAGE Vm
++	addmsg Purk_maind/CaP Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaP Gbar {{GCaPm}*surf}
++	copy Purk_KC Purk_maind/KC
++	addmsg Purk_maind Purk_maind/KC VOLTAGE Vm
++	addmsg Purk_maind/KC Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KC Gbar {{GKCm}*surf}
++	copy Purk_K2 Purk_maind/K2
++	addmsg Purk_maind Purk_maind/K2 VOLTAGE Vm
++	addmsg Purk_maind/K2 Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/K2 Gbar {{GK2m}*surf}
++	create Ca_concen Purk_maind/Ca_pool
++	setfield Purk_maind/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_maind/CaT Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/CaP Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/Ca_pool Purk_maind/KC CONCEN Ca
++	addmsg Purk_maind/Ca_pool Purk_maind/K2 CONCEN Ca
++	create nernst Purk_maind/Ca_nernst
++	setfield Purk_maind/Ca_nernst Cin {CCaI} Cout {CCaO} valency {2} \
++	     scale {1.0} T {37}
++	addmsg Purk_maind/Ca_pool Purk_maind/Ca_nernst CIN Ca
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaP EK E
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaT EK E
++
++	/* make thick dendrite prototype with fast Ca current */
++	/* similar to main dendrite but has CaP and no Kdr */
++	/* passive prototype already copied from Purk_maind */
++	setfield Purk_thickd Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++          Em {ELEAK} initVm {EREST_ACT} Rm {{RMtd}/surf} inject 0.0  \
++          dia {dia} len {len}
++
++        copy Purk_CaT Purk_thickd/CaT
++	addmsg Purk_thickd Purk_thickd/CaT VOLTAGE Vm
++	addmsg Purk_thickd/CaT Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaT Gbar {{GCaTt}*surf}
++	copy Purk_CaP Purk_thickd/CaP
++	addmsg Purk_thickd Purk_thickd/CaP VOLTAGE Vm
++	addmsg Purk_thickd/CaP Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaP Gbar {{GCaPt}*surf}
++	copy Purk_KM Purk_thickd/KM
++	addmsg Purk_thickd Purk_thickd/KM VOLTAGE Vm
++	addmsg Purk_thickd/KM Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KM Gbar {{GKMt}*surf}
++	copy Purk_KC Purk_thickd/KC
++	addmsg Purk_thickd Purk_thickd/KC VOLTAGE Vm
++	addmsg Purk_thickd/KC Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KC Gbar {{GKCt}*surf}
++	copy Purk_K2 Purk_thickd/K2
++	addmsg Purk_thickd Purk_thickd/K2 VOLTAGE Vm
++	addmsg Purk_thickd/K2 Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/K2 Gbar {{GK2t}*surf}
++	create Ca_concen Purk_thickd/Ca_pool
++	setfield Purk_thickd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_thickd/CaT Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/CaP Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/Ca_pool Purk_thickd/KC CONCEN Ca
++	addmsg Purk_thickd/Ca_pool Purk_thickd/K2 CONCEN Ca
++	create nernst Purk_thickd/Ca_nernst
++	setfield Purk_thickd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_thickd/Ca_pool Purk_thickd/Ca_nernst CIN Ca
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaP EK E
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaT EK E
++	for (i=1; i<=2; i = i+1)
++	    copy GABA Purk_thickd/stell{i}
++	    setfield Purk_thickd/stell{i} gmax {{G_GABA}/5*surf}
++	    addmsg Purk_thickd/stell{i} Purk_thickd CHANNEL Gk Ek
++	    addmsg Purk_thickd  Purk_thickd/stell{i}  VOLTAGE Vm
++	end
++
++	/* make spiny dendrite prototype with high threshold Ca current  \
++	    */
++	/* passive prototype already copied from Purk_maind */
++	setfield Purk_spinyd Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++          Em {ELEAK} initVm {EREST_ACT} Rm {{RMsd}/surf} inject 0.0  \
++          dia {dia} len {len}
++
++        copy Purk_CaT Purk_spinyd/CaT
++	addmsg Purk_spinyd Purk_spinyd/CaT VOLTAGE Vm
++	addmsg Purk_spinyd/CaT Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaT Gbar {{GCaTd}*surf}
++	copy Purk_CaP Purk_spinyd/CaP
++	addmsg Purk_spinyd Purk_spinyd/CaP VOLTAGE Vm
++	addmsg Purk_spinyd/CaP Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaP Gbar {{GCaPd}*surf}
++	copy Purk_KM Purk_spinyd/KM
++	addmsg Purk_spinyd Purk_spinyd/KM VOLTAGE Vm
++	addmsg Purk_spinyd/KM Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KM Gbar {{GKMd}*surf}
++	copy Purk_KC Purk_spinyd/KC
++	addmsg Purk_spinyd Purk_spinyd/KC VOLTAGE Vm
++	addmsg Purk_spinyd/KC Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KC Gbar {{GKCd}*surf}
++	copy Purk_K2 Purk_spinyd/K2
++	addmsg Purk_spinyd Purk_spinyd/K2 VOLTAGE Vm
++	addmsg Purk_spinyd/K2 Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/K2 Gbar {{GK2d}*surf}
++	create Ca_concen Purk_spinyd/Ca_pool
++	setfield Purk_spinyd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_spinyd/CaP Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/CaT Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/KC CONCEN Ca
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/K2 CONCEN Ca
++	create nernst Purk_spinyd/Ca_nernst
++	setfield Purk_spinyd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/Ca_nernst CIN Ca
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaP EK E
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaT EK E
++	copy GABA Purk_spinyd/stell
++	setfield Purk_spinyd/stell gmax {{G_GABA}*surf}
++	addmsg Purk_spinyd/stell Purk_spinyd CHANNEL Gk Ek
++	addmsg Purk_spinyd  Purk_spinyd/stell  VOLTAGE Vm
++end
++
++/*********************************************************************/
++function make_Purkinje_spines
++/* separate function so we can have local variables */
++/* one standard format, may be rescaled in attach_spines */
++/* Reference: Harris KM, Stevens JK: Dendritic spines of rat
++**  cerebellar Purkinje cells: serial electron microscopy with
++**  reference to their biophysical characteristics.  J Neurosci 8: p
++**  4455-4469, 1988. */
++
++	float len, dia, surf, vol
++
++    /* make spine with average length and diameter */
++	/* make spine neck */
++	len = 0.66e-6
++	dia = 0.20e-6
++	surf = len*dia*{PI}
++	vol = len*dia*dia*{PI}/4.0
++	if (!({exists Purk_spine}))
++		create compartment Purk_spine
++	end
++	setfield Purk_spine Cm {{CM}*surf}  \
++	    Ra {4.0*{RA}*len/(dia*dia*{PI})} Em {ELEAK}  \
++	    initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0 x {len} dia {dia} \
++		len {len}
++
++	/* make spine head */
++	len = 0.00e-6
++	// derived from average surface
++	dia = 0.54e-6
++	surf = dia*dia*{PI}
++	create compartment Purk_spine/head
++	setfield Purk_spine/head Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})} \
++	     Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++	    x {dia} dia {dia} len {len}
++
++	/* make a combined prototype: neck+head */
++	addmsg Purk_spine/head Purk_spine RAXIAL Ra Vm
++	addmsg Purk_spine Purk_spine/head AXIAL Vm
++
++	copy Purk_spine Purk_spine2
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA Purk_spine/head/par
++	setfield Purk_spine/head/par gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine/head  Purk_spine/head/par	VOLTAGE Vm
++	addmsg Purk_spine/head/par Purk_spine/head CHANNEL Gk Ek
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA2 Purk_spine2/head/par2
++	setfield Purk_spine2/head/par2 gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine2/head  Purk_spine2/head/par2	VOLTAGE Vm
++	addmsg Purk_spine2/head/par2 Purk_spine2/head CHANNEL Gk Ek
++
++end
++/*********************************************************************/
+Index: 0.58/Purk_spicomp.g
+--- 0.58/Purk_spicomp.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_spicomp.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/14_Purk_spico 1.1 640)
+@@ -0,0 +1,256 @@
++//genesis - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/**********************************************************************
++** Sets up active membrane Purkinje cell compartment prototypes 
++**  and dendritic spine prototypes.
++** E. De Schutter, Caltech, 1991-1992
++** This version sets up a passive soma and active dendritic compartments 
++**  with stellate cell synapses.
++**********************************************************************/
++
++/* References:
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
++** Journal of Neurophysiology  71: 375-400 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell: II. Simulation of synaptic responses.
++** Journal of Neurophysiology  71: 401-419 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub7.html
++** E. De Schutter and J.M. Bower: Simulated responses of cerebellar
++** Purkinje cells are independent of the dendritic location of granule 
++** cell synaptic inputs. Proceedings of the National Academy of Sciences 
++** USA 91: 4736-4740 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub6.html
++** Consult these references for sources of experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
++*/
++
++function make_Purkinje_comps
++/* separate function so we can have local variables */
++
++	float len, dia, surf, shell_vol, shell_dia
++	int i
++
++	echo making Purkinje compartment library...
++
++	/* make spherical soma prototype with sodium currents*/
++	len = 0.00e-6
++	dia = 20.0e-6
++	surf = dia*dia*{PI}
++	shell_dia = 2*{Shell_thick}
++	shell_vol = (3*dia*dia*shell_dia - 3*dia*shell_dia*shell_dia + shell_dia*shell_dia*shell_dia)*{PI}/6.0
++	if (!({exists Purk_soma}))
++		create compartment Purk_soma
++	end
++	setfield Purk_soma Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})}  \
++	    Em {ELEAK} initVm {EREST_ACT} Rm {{RMs}/surf} inject 0.0  \
++	    dia {dia} len {len}
++
++    /* make main dendrite prototype with fast Ca currents */
++    len = 200.00e-6
++    dia = 2.00e-6
++    surf = len*dia*{PI}
++    shell_vol = (2*dia*shell_dia - shell_dia*shell_dia)*len*{PI}/4.0
++    if (!({exists Purk_maind}))
++        create compartment Purk_maind
++    end
++    setfield Purk_maind Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++        Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++        dia {dia} len {len}
++
++    if (!({exists Purk_thickd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_thickd
++    end
++    if (!({exists Purk_spinyd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_spinyd
++    end
++
++	copy Purk_CaT Purk_maind/CaT
++	addmsg Purk_maind Purk_maind/CaT VOLTAGE Vm
++	addmsg Purk_maind/CaT Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaT Gbar {{GCaTm}*surf}
++	copy Purk_KA Purk_maind/KA
++	addmsg Purk_maind Purk_maind/KA VOLTAGE Vm
++	addmsg Purk_maind/KA Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KA Gbar {{GKAm}*surf}
++	copy Purk_Kdr Purk_maind/Kdr
++	addmsg Purk_maind Purk_maind/Kdr VOLTAGE Vm
++	addmsg Purk_maind/Kdr Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/Kdr Gbar {{GKdrm}*surf}
++	copy Purk_KM Purk_maind/KM
++	addmsg Purk_maind Purk_maind/KM VOLTAGE Vm
++	addmsg Purk_maind/KM Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KM Gbar {{GKMm}*surf}
++	copy Purk_CaP Purk_maind/CaP
++	addmsg Purk_maind Purk_maind/CaP VOLTAGE Vm
++	addmsg Purk_maind/CaP Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaP Gbar {{GCaPm}*surf}
++	copy Purk_KC Purk_maind/KC
++	addmsg Purk_maind Purk_maind/KC VOLTAGE Vm
++	addmsg Purk_maind/KC Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KC Gbar {{GKCm}*surf}
++	copy Purk_K2 Purk_maind/K2
++	addmsg Purk_maind Purk_maind/K2 VOLTAGE Vm
++	addmsg Purk_maind/K2 Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/K2 Gbar {{GK2m}*surf}
++	create Ca_concen Purk_maind/Ca_pool
++	setfield Purk_maind/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_maind/CaT Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/CaP Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/Ca_pool Purk_maind/KC CONCEN Ca
++	addmsg Purk_maind/Ca_pool Purk_maind/K2 CONCEN Ca
++	create nernst Purk_maind/Ca_nernst
++	setfield Purk_maind/Ca_nernst Cin {CCaI} Cout {CCaO} valency {2} \
++	     scale {1.0} T {37}
++	addmsg Purk_maind/Ca_pool Purk_maind/Ca_nernst CIN Ca
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaP EK E
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaT EK E
++
++	/* make thick dendrite prototype with fast Ca current */
++	/* similar to main dendrite but has CaP and no Kdr */
++	/* passive prototype already copied from Purk_maind */
++	copy Purk_CaT Purk_thickd/CaT
++	addmsg Purk_thickd Purk_thickd/CaT VOLTAGE Vm
++	addmsg Purk_thickd/CaT Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaT Gbar {{GCaTt}*surf}
++	copy Purk_CaP Purk_thickd/CaP
++	addmsg Purk_thickd Purk_thickd/CaP VOLTAGE Vm
++	addmsg Purk_thickd/CaP Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaP Gbar {{GCaPt}*surf}
++	copy Purk_KM Purk_thickd/KM
++	addmsg Purk_thickd Purk_thickd/KM VOLTAGE Vm
++	addmsg Purk_thickd/KM Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KM Gbar {{GKMt}*surf}
++	copy Purk_KC Purk_thickd/KC
++	addmsg Purk_thickd Purk_thickd/KC VOLTAGE Vm
++	addmsg Purk_thickd/KC Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KC Gbar {{GKCt}*surf}
++	copy Purk_K2 Purk_thickd/K2
++	addmsg Purk_thickd Purk_thickd/K2 VOLTAGE Vm
++	addmsg Purk_thickd/K2 Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/K2 Gbar {{GK2t}*surf}
++	create Ca_concen Purk_thickd/Ca_pool
++	setfield Purk_thickd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_thickd/CaT Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/CaP Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/Ca_pool Purk_thickd/KC CONCEN Ca
++	addmsg Purk_thickd/Ca_pool Purk_thickd/K2 CONCEN Ca
++	create nernst Purk_thickd/Ca_nernst
++	setfield Purk_thickd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_thickd/Ca_pool Purk_thickd/Ca_nernst CIN Ca
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaP EK E
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaT EK E
++	for (i=1; i<=2; i = i+1)
++	    copy GABA Purk_thickd/stell{i}
++	    setfield Purk_thickd/stell{i} gmax {{G_GABA}/5*surf}
++	    addmsg Purk_thickd/stell{i} Purk_thickd CHANNEL Gk Ek
++		addmsg Purk_thickd  Purk_thickd/stell{i}  VOLTAGE Vm
++	end
++
++	/* make spiny dendrite prototype with high threshold Ca current  \
++	    */
++	/* passive prototype already copied from Purk_maind */
++	copy Purk_CaT Purk_spinyd/CaT
++	addmsg Purk_spinyd Purk_spinyd/CaT VOLTAGE Vm
++	addmsg Purk_spinyd/CaT Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaT Gbar {{GCaTd}*surf}
++	copy Purk_CaP Purk_spinyd/CaP
++	addmsg Purk_spinyd Purk_spinyd/CaP VOLTAGE Vm
++	addmsg Purk_spinyd/CaP Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaP Gbar {{GCaPd}*surf}
++	copy Purk_KM Purk_spinyd/KM
++	addmsg Purk_spinyd Purk_spinyd/KM VOLTAGE Vm
++	addmsg Purk_spinyd/KM Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KM Gbar {{GKMd}*surf}
++	copy Purk_KC Purk_spinyd/KC
++	addmsg Purk_spinyd Purk_spinyd/KC VOLTAGE Vm
++	addmsg Purk_spinyd/KC Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KC Gbar {{GKCd}*surf}
++	copy Purk_K2 Purk_spinyd/K2
++	addmsg Purk_spinyd Purk_spinyd/K2 VOLTAGE Vm
++	addmsg Purk_spinyd/K2 Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/K2 Gbar {{GK2d}*surf}
++	create Ca_concen Purk_spinyd/Ca_pool
++	setfield Purk_spinyd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_spinyd/CaP Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/CaT Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/KC CONCEN Ca
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/K2 CONCEN Ca
++	create nernst Purk_spinyd/Ca_nernst
++	setfield Purk_spinyd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/Ca_nernst CIN Ca
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaP EK E
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaT EK E
++	copy GABA Purk_spinyd/stell
++	setfield Purk_spinyd/stell gmax {{G_GABA}*surf}
++	addmsg Purk_spinyd/stell Purk_spinyd CHANNEL Gk Ek
++	addmsg Purk_spinyd  Purk_spinyd/stell  VOLTAGE Vm
++end
++
++/*********************************************************************/
++function make_Purkinje_spines
++/* separate function so we can have local variables */
++/* one standard format, may be rescaled in attach_spines */
++/* Reference: Harris KM, Stevens JK: Dendritic spines of rat
++**  cerebellar Purkinje cells: serial electron microscopy with
++**  reference to their biophysical characteristics.  J Neurosci 8: p
++**  4455-4469, 1988. */
++
++	float len, dia, surf, vol
++
++    /* make spine with average length and diameter */
++	/* make spine neck */
++	len = 0.66e-6
++	dia = 0.20e-6
++	surf = len*dia*{PI}
++	vol = len*dia*dia*{PI}/4.0
++	if (!({exists Purk_spine}))
++		create compartment Purk_spine
++	end
++	setfield Purk_spine Cm {{CM}*surf}  \
++	    Ra {4.0*{RA}*len/(dia*dia*{PI})} Em {ELEAK}  \
++	    initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0 x {len} dia {dia} \
++		len {len}
++
++	/* make spine head */
++	len = 0.00e-6
++	// derived from average surface
++	dia = 0.54e-6
++	surf = dia*dia*{PI}
++	create compartment Purk_spine/head
++	setfield Purk_spine/head Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})} \
++	     Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++	    x {dia} dia {dia} len {len}
++
++	/* make a combined prototype: neck+head */
++	addmsg Purk_spine/head Purk_spine RAXIAL Ra Vm
++	addmsg Purk_spine Purk_spine/head AXIAL Vm
++
++	copy Purk_spine Purk_spine2
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA Purk_spine/head/par
++	setfield Purk_spine/head/par gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine/head  Purk_spine/head/par	VOLTAGE Vm
++	addmsg Purk_spine/head/par Purk_spine/head CHANNEL Gk Ek
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA2 Purk_spine2/head/par2
++	setfield Purk_spine2/head/par2 gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine2/head  Purk_spine2/head/par2	VOLTAGE Vm
++	addmsg Purk_spine2/head/par2 Purk_spine2/head CHANNEL Gk Ek
++
++end
++/*********************************************************************/
+Index: 0.58/Purk_passconst.g
+--- 0.58/Purk_passconst.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_passconst.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/15_Purk_passc 1.1 640)
+@@ -0,0 +1,70 @@
++//genesis  - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/* This file defines important simulation parameters, including gmax
++** and Ek for all channels.  Everything uses SI units. */
++
++echo Using Purkinje 2M9 preferences. Crank Nicholson method.
++/* variables controlling hsolve integration */
++float dt = 2.0e-5
++int tab_xdivs = 149
++int tab_xfills = 2999
++
++/* The model is quite sensitive to these values in NO_INTERP (caclmode=0) */
++float tab_xmin = -0.10
++float tab_xmax = 0.05
++float Ca_tab_max = 0.300
++
++// only used for proto channels
++float GNa = 1, GCa = 1, GK = 1, Gh = 1
++/* cable parameters */
++float CM = 0.0164 		// *9 relative to passive
++float RMs = 1.000 		// /3.7 relative to passive comp
++float RMd = 3.0
++float RA = 2.50
++/* preset constants */
++float ELEAK = -0.0800 		// Ek value used for the leak conductance
++float EREST_ACT = -0.0680 	// Vm value used for the RESET
++/* concentrations */
++float CCaO = 2.4000 		//external Ca as in normal slice Ringer
++float CCaI = 0.000040		//internal Ca in mM
++//diameter of Ca_shells
++float Shell_thick = 0.20e-6
++float CaTau = 0.00010	 	// Ca_concen tau
++/* Currents: Reversal potentials in V and max conductances S/m^2 */
++/* Codes: s=soma, m=main dendrite, t=thick dendrite, d=spiny dendrite */
++float ENa = 0.045
++float GNaFs = 75000.0
++float GNaPs = 10.0
++float ECa = 0.0125*{log {CCaO/CCaI}} // 0.135 V
++float GCaTs = 5.00
++float GCaTm = 0//5.00
++float GCaTt = 0//5.00
++float GCaTd = 0//5.00
++float GCaPm = 0//45.0
++float GCaPt = 0//45.0
++float GCaPd = 0//45.0
++float EK = -0.085
++float GKAs = 150.0
++float GKAm = 0//20.0
++float GKdrs = 6000.0
++float GKdrm = 0//600.0
++float GKMs = 0.400
++float GKMm = 0//0.100
++float GKMt = 0//0.130
++float GKMd = 0//0.130
++float GKCm = 0//800.0
++float GKCt = 0//800.0
++float GKCd = 0//800.0
++float GK2m = 0//3.90
++float GK2t = 0//3.90
++float GK2d = 0//3.90
++float Eh = -0.030
++float Ghs = 3.00
++/* synapses: */
++float E_GABA = -0.080
++float G_GABA = 70.0/dt
++float GB_GABA = 20.0/dt
++float E_non_NMDA = 0.000
++float G_par_syn = 750.0/dt
++float G_cli_syn = 150.0/dt
+Index: 0.58/Purk_iticomp.g
+--- 0.58/Purk_iticomp.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_iticomp.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/16_Purk_itico 1.1 640)
+@@ -0,0 +1,296 @@
++//genesis - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/**********************************************************************
++** Sets up active membrane Purkinje cell compartment prototypes 
++**  and dendritic spine prototypes.
++** E. De Schutter, Caltech, 1991-1992
++** This version sets up active compartments with stellate cell synapses.
++**********************************************************************/
++
++/* References:
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
++** Journal of Neurophysiology  71: 375-400 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell: II. Simulation of synaptic responses.
++** Journal of Neurophysiology  71: 401-419 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub7.html
++** Consult these references for sources of experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
++*/
++
++function make_Purkinje_comps
++/* separate function so we can have local variables */
++
++	float len, dia, surf, shell_vol, shell_dia
++	int i
++
++	echo making Purkinje compartment library...
++
++	/* make spherical soma prototype with sodium currents*/
++	len = 0.00e-6
++	dia = 20.0e-6
++	surf = dia*dia*{PI}
++	shell_dia = 2*{Shell_thick}
++	shell_vol = (3*dia*dia*shell_dia - 3*dia*shell_dia*shell_dia + shell_dia*shell_dia*shell_dia)*{PI}/6.0
++	if (!({exists Purk_soma}))
++		create compartment Purk_soma
++	end
++	setfield Purk_soma Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})}  \
++	    Em {ELEAK} initVm {EREST_ACT} Rm {{RMs}/surf} inject 0.0  \
++	    dia {dia} len {len}
++
++	copy Purk_NaF Purk_soma/NaF
++	addmsg Purk_soma Purk_soma/NaF VOLTAGE Vm
++	addmsg Purk_soma/NaF Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/NaF Gbar {{GNaFs}*surf}
++	copy Purk_NaP Purk_soma/NaP
++	addmsg Purk_soma Purk_soma/NaP VOLTAGE Vm
++	addmsg Purk_soma/NaP Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/NaP Gbar {{GNaPs}*surf}
++	copy Purk_CaT Purk_soma/CaT
++	addmsg Purk_soma Purk_soma/CaT VOLTAGE Vm
++	addmsg Purk_soma/CaT Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/CaT Gbar {{GCaTs}*surf}
++	copy Purk_KA Purk_soma/KA
++	addmsg Purk_soma Purk_soma/KA VOLTAGE Vm
++	addmsg Purk_soma/KA Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/KA Gbar {{GKAs}*surf}
++	copy Purk_Kdr Purk_soma/Kdr
++	addmsg Purk_soma Purk_soma/Kdr VOLTAGE Vm
++	addmsg Purk_soma/Kdr Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/Kdr Gbar {{GKdrs}*surf}
++	copy Purk_KM Purk_soma/KM
++	addmsg Purk_soma Purk_soma/KM VOLTAGE Vm
++	addmsg Purk_soma/KM Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/KM Gbar {{GKMs}*surf}
++	copy Purk_h1 Purk_soma/h1
++	addmsg Purk_soma Purk_soma/h1 VOLTAGE Vm
++	addmsg Purk_soma/h1 Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/h1 Gbar {{Ghs}*surf}
++	copy Purk_h2 Purk_soma/h2
++	addmsg Purk_soma Purk_soma/h2 VOLTAGE Vm
++	addmsg Purk_soma/h2 Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/h2 Gbar {{Ghs}*surf}
++	create Ca_concen Purk_soma/Ca_pool
++	setfield Purk_soma/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_soma/CaT Purk_soma/Ca_pool I_Ca Ik
++
++    /* make main dendrite prototype with fast Ca currents */
++    len = 200.00e-6
++    dia = 2.00e-6
++    surf = len*dia*{PI}
++    shell_vol = (2*dia*shell_dia - shell_dia*shell_dia)*len*{PI}/4.0
++    if (!({exists Purk_maind}))
++        create compartment Purk_maind
++    end
++    setfield Purk_maind Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++        Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++        dia {dia} len {len}
++
++    if (!({exists Purk_thickd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_thickd
++    end
++    if (!({exists Purk_spinyd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_spinyd
++    end
++
++	copy Purk_CaT Purk_maind/CaT
++	addmsg Purk_maind Purk_maind/CaT VOLTAGE Vm
++	addmsg Purk_maind/CaT Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaT Gbar {{GCaTm}*surf}
++	copy Purk_KA Purk_maind/KA
++	addmsg Purk_maind Purk_maind/KA VOLTAGE Vm
++	addmsg Purk_maind/KA Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KA Gbar {{GKAm}*surf}
++	copy Purk_Kdr Purk_maind/Kdr
++	addmsg Purk_maind Purk_maind/Kdr VOLTAGE Vm
++	addmsg Purk_maind/Kdr Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/Kdr Gbar {{GKdrm}*surf}
++	copy Purk_KM Purk_maind/KM
++	addmsg Purk_maind Purk_maind/KM VOLTAGE Vm
++	addmsg Purk_maind/KM Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KM Gbar {{GKMm}*surf}
++	copy Purk_CaP Purk_maind/CaP
++	addmsg Purk_maind Purk_maind/CaP VOLTAGE Vm
++	addmsg Purk_maind/CaP Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaP Gbar {{GCaPm}*surf}
++	copy Purk_KC Purk_maind/KC
++	addmsg Purk_maind Purk_maind/KC VOLTAGE Vm
++	addmsg Purk_maind/KC Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KC Gbar {{GKCm}*surf}
++	copy Purk_K2 Purk_maind/K2
++	addmsg Purk_maind Purk_maind/K2 VOLTAGE Vm
++	addmsg Purk_maind/K2 Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/K2 Gbar {{GK2m}*surf}
++	create Ca_concen Purk_maind/Ca_pool
++	setfield Purk_maind/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_maind/CaT Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/CaP Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/Ca_pool Purk_maind/KC CONCEN Ca
++	addmsg Purk_maind/Ca_pool Purk_maind/K2 CONCEN Ca
++	create nernst Purk_maind/Ca_nernst
++	setfield Purk_maind/Ca_nernst Cin {CCaI} Cout {CCaO} valency {2} \
++	     scale {1.0} T {37}
++	addmsg Purk_maind/Ca_pool Purk_maind/Ca_nernst CIN Ca
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaP EK E
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaT EK E
++
++	/* make thick dendrite prototype with fast Ca current */
++	/* similar to main dendrite but has CaP and no Kdr */
++	/* passive prototype already copied from Purk_maind */
++	setfield Purk_thickd Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++          Em {ELEAK} initVm {EREST_ACT} Rm {{RMtd}/surf} inject 0.0  \
++          dia {dia} len {len}
++
++        copy Purk_CaT Purk_thickd/CaT
++	addmsg Purk_thickd Purk_thickd/CaT VOLTAGE Vm
++	addmsg Purk_thickd/CaT Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaT Gbar {{GCaTt}*surf}
++	copy Purk_CaP Purk_thickd/CaP
++	addmsg Purk_thickd Purk_thickd/CaP VOLTAGE Vm
++	addmsg Purk_thickd/CaP Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaP Gbar {{GCaPt}*surf}
++	copy Purk_KM Purk_thickd/KM
++	addmsg Purk_thickd Purk_thickd/KM VOLTAGE Vm
++	addmsg Purk_thickd/KM Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KM Gbar {{GKMt}*surf}
++	copy Purk_KC Purk_thickd/KC
++	addmsg Purk_thickd Purk_thickd/KC VOLTAGE Vm
++	addmsg Purk_thickd/KC Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KC Gbar {{GKCt}*surf}
++	copy Purk_K2 Purk_thickd/K2
++	addmsg Purk_thickd Purk_thickd/K2 VOLTAGE Vm
++	addmsg Purk_thickd/K2 Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/K2 Gbar {{GK2t}*surf}
++	create Ca_concen Purk_thickd/Ca_pool
++	setfield Purk_thickd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_thickd/CaT Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/CaP Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/Ca_pool Purk_thickd/KC CONCEN Ca
++	addmsg Purk_thickd/Ca_pool Purk_thickd/K2 CONCEN Ca
++	create nernst Purk_thickd/Ca_nernst
++	setfield Purk_thickd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_thickd/Ca_pool Purk_thickd/Ca_nernst CIN Ca
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaP EK E
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaT EK E
++	for (i=1; i<=2; i = i+1)
++	    copy GABA Purk_thickd/stell{i}
++	    setfield Purk_thickd/stell{i} gmax {{G_GABA}/5*surf}
++	    addmsg Purk_thickd/stell{i} Purk_thickd CHANNEL Gk Ek
++		addmsg Purk_thickd  Purk_thickd/stell{i}  VOLTAGE Vm
++	end
++
++	/* make spiny dendrite prototype with high threshold Ca current  \
++	    */
++	/* passive prototype already copied from Purk_maind */
++	setfield Purk_spinyd Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++          Em {ELEAK} initVm {EREST_ACT} Rm {{RMsd}/surf} inject 0.0  \
++          dia {dia} len {len}
++
++        copy Purk_CaT Purk_spinyd/CaT
++	addmsg Purk_spinyd Purk_spinyd/CaT VOLTAGE Vm
++	addmsg Purk_spinyd/CaT Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaT Gbar {{GCaTd}*surf}
++	copy Purk_CaP Purk_spinyd/CaP
++	addmsg Purk_spinyd Purk_spinyd/CaP VOLTAGE Vm
++	addmsg Purk_spinyd/CaP Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaP Gbar {{GCaPd}*surf}
++	copy Purk_KM Purk_spinyd/KM
++	addmsg Purk_spinyd Purk_spinyd/KM VOLTAGE Vm
++	addmsg Purk_spinyd/KM Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KM Gbar {{GKMd}*surf}
++	copy Purk_KC Purk_spinyd/KC
++	addmsg Purk_spinyd Purk_spinyd/KC VOLTAGE Vm
++	addmsg Purk_spinyd/KC Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KC Gbar {{GKCd}*surf}
++	copy Purk_K2 Purk_spinyd/K2
++	addmsg Purk_spinyd Purk_spinyd/K2 VOLTAGE Vm
++	addmsg Purk_spinyd/K2 Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/K2 Gbar {{GK2d}*surf}
++	create Ca_concen Purk_spinyd/Ca_pool
++	setfield Purk_spinyd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_spinyd/CaP Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/CaT Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/KC CONCEN Ca
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/K2 CONCEN Ca
++	create nernst Purk_spinyd/Ca_nernst
++	setfield Purk_spinyd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/Ca_nernst CIN Ca
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaP EK E
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaT EK E
++	copy GABA Purk_spinyd/stell
++	setfield Purk_spinyd/stell gmax {{G_GABA}*surf}
++	addmsg Purk_spinyd/stell Purk_spinyd CHANNEL Gk Ek
++	addmsg Purk_spinyd  Purk_spinyd/stell  VOLTAGE Vm
++end
++
++/*********************************************************************/
++function make_Purkinje_spines
++/* separate function so we can have local variables */
++/* one standard format, may be rescaled in attach_spines */
++/* Reference: Harris KM, Stevens JK: Dendritic spines of rat
++**  cerebellar Purkinje cells: serial electron microscopy with
++**  reference to their biophysical characteristics.  J Neurosci 8: p
++**  4455-4469, 1988. */
++
++	float len, dia, surf, vol
++
++    /* make spine with average length and diameter */
++	/* make spine neck */
++	len = 0.66e-6
++	dia = 0.20e-6
++	surf = len*dia*{PI}
++	vol = len*dia*dia*{PI}/4.0
++	if (!({exists Purk_spine}))
++		create compartment Purk_spine
++	end
++	setfield Purk_spine Cm {{CM}*surf}  \
++	    Ra {4.0*{RA}*len/(dia*dia*{PI})} Em {ELEAK}  \
++	    initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0 x {len} dia {dia} \
++		len {len}
++
++	/* make spine head */
++	len = 0.00e-6
++	// derived from average surface
++	dia = 0.54e-6
++	surf = dia*dia*{PI}
++	create compartment Purk_spine/head
++	setfield Purk_spine/head Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})} \
++	     Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++	    x {dia} dia {dia} len {len}
++
++	/* make a combined prototype: neck+head */
++	addmsg Purk_spine/head Purk_spine RAXIAL Ra Vm
++	addmsg Purk_spine Purk_spine/head AXIAL Vm
++
++	copy Purk_spine Purk_spine2
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA Purk_spine/head/par
++	setfield Purk_spine/head/par gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine/head  Purk_spine/head/par	VOLTAGE Vm
++	addmsg Purk_spine/head/par Purk_spine/head CHANNEL Gk Ek
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA2 Purk_spine2/head/par2
++	setfield Purk_spine2/head/par2 gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine2/head  Purk_spine2/head/par2	VOLTAGE Vm
++	addmsg Purk_spine2/head/par2 Purk_spine2/head CHANNEL Gk Ek
++
++end
++/*********************************************************************/
+Index: 0.58/Purk_icomp.g
+--- 0.58/Purk_icomp.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_icomp.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/17_Purk_icomp 1.1 640)
+@@ -0,0 +1,288 @@
++//genesis - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/**********************************************************************
++** Sets up active membrane Purkinje cell compartment prototypes 
++**  and dendritic spine prototypes.
++** E. De Schutter, Caltech, 1991-1992
++** This version sets up active compartments with stellate cell synapses.
++**********************************************************************/
++
++/* References:
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
++** Journal of Neurophysiology  71: 375-400 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell: II. Simulation of synaptic responses.
++** Journal of Neurophysiology  71: 401-419 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub7.html
++** Consult these references for sources of experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
++*/
++
++function make_Purkinje_comps
++/* separate function so we can have local variables */
++
++	float len, dia, surf, shell_vol, shell_dia
++	int i
++
++	echo making Purkinje compartment library...
++
++	/* make spherical soma prototype with sodium currents*/
++	len = 0.00e-6
++	dia = 20.0e-6
++	surf = dia*dia*{PI}
++	shell_dia = 2*{Shell_thick}
++	shell_vol = (3*dia*dia*shell_dia - 3*dia*shell_dia*shell_dia + shell_dia*shell_dia*shell_dia)*{PI}/6.0
++	if (!({exists Purk_soma}))
++		create compartment Purk_soma
++	end
++	setfield Purk_soma Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})}  \
++	    Em {ELEAK} initVm {EREST_ACT} Rm {{RMs}/surf} inject 0.0  \
++	    dia {dia} len {len}
++
++	copy Purk_NaF Purk_soma/NaF
++	addmsg Purk_soma Purk_soma/NaF VOLTAGE Vm
++	addmsg Purk_soma/NaF Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/NaF Gbar {{GNaFs}*surf}
++	copy Purk_NaP Purk_soma/NaP
++	addmsg Purk_soma Purk_soma/NaP VOLTAGE Vm
++	addmsg Purk_soma/NaP Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/NaP Gbar {{GNaPs}*surf}
++	copy Purk_CaT Purk_soma/CaT
++	addmsg Purk_soma Purk_soma/CaT VOLTAGE Vm
++	addmsg Purk_soma/CaT Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/CaT Gbar {{GCaTs}*surf}
++	copy Purk_KA Purk_soma/KA
++	addmsg Purk_soma Purk_soma/KA VOLTAGE Vm
++	addmsg Purk_soma/KA Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/KA Gbar {{GKAs}*surf}
++	copy Purk_Kdr Purk_soma/Kdr
++	addmsg Purk_soma Purk_soma/Kdr VOLTAGE Vm
++	addmsg Purk_soma/Kdr Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/Kdr Gbar {{GKdrs}*surf}
++	copy Purk_KM Purk_soma/KM
++	addmsg Purk_soma Purk_soma/KM VOLTAGE Vm
++	addmsg Purk_soma/KM Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/KM Gbar {{GKMs}*surf}
++	copy Purk_h1 Purk_soma/h1
++	addmsg Purk_soma Purk_soma/h1 VOLTAGE Vm
++	addmsg Purk_soma/h1 Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/h1 Gbar {{Ghs}*surf}
++	copy Purk_h2 Purk_soma/h2
++	addmsg Purk_soma Purk_soma/h2 VOLTAGE Vm
++	addmsg Purk_soma/h2 Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/h2 Gbar {{Ghs}*surf}
++	create Ca_concen Purk_soma/Ca_pool
++	setfield Purk_soma/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_soma/CaT Purk_soma/Ca_pool I_Ca Ik
++
++    /* make main dendrite prototype with fast Ca currents */
++    len = 200.00e-6
++    dia = 2.00e-6
++    surf = len*dia*{PI}
++    shell_vol = (2*dia*shell_dia - shell_dia*shell_dia)*len*{PI}/4.0
++    if (!({exists Purk_maind}))
++        create compartment Purk_maind
++    end
++    setfield Purk_maind Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++        Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++        dia {dia} len {len}
++
++    if (!({exists Purk_thickd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_thickd
++    end
++    if (!({exists Purk_spinyd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_spinyd
++    end
++
++	copy Purk_CaT Purk_maind/CaT
++	addmsg Purk_maind Purk_maind/CaT VOLTAGE Vm
++	addmsg Purk_maind/CaT Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaT Gbar {{GCaTm}*surf}
++	copy Purk_KA Purk_maind/KA
++	addmsg Purk_maind Purk_maind/KA VOLTAGE Vm
++	addmsg Purk_maind/KA Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KA Gbar {{GKAm}*surf}
++	copy Purk_Kdr Purk_maind/Kdr
++	addmsg Purk_maind Purk_maind/Kdr VOLTAGE Vm
++	addmsg Purk_maind/Kdr Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/Kdr Gbar {{GKdrm}*surf}
++	copy Purk_KM Purk_maind/KM
++	addmsg Purk_maind Purk_maind/KM VOLTAGE Vm
++	addmsg Purk_maind/KM Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KM Gbar {{GKMm}*surf}
++	copy Purk_CaP Purk_maind/CaP
++	addmsg Purk_maind Purk_maind/CaP VOLTAGE Vm
++	addmsg Purk_maind/CaP Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaP Gbar {{GCaPm}*surf}
++	copy Purk_KC Purk_maind/KC
++	addmsg Purk_maind Purk_maind/KC VOLTAGE Vm
++	addmsg Purk_maind/KC Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KC Gbar {{GKCm}*surf}
++	copy Purk_K2 Purk_maind/K2
++	addmsg Purk_maind Purk_maind/K2 VOLTAGE Vm
++	addmsg Purk_maind/K2 Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/K2 Gbar {{GK2m}*surf}
++	create Ca_concen Purk_maind/Ca_pool
++	setfield Purk_maind/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_maind/CaT Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/CaP Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/Ca_pool Purk_maind/KC CONCEN Ca
++	addmsg Purk_maind/Ca_pool Purk_maind/K2 CONCEN Ca
++	create nernst Purk_maind/Ca_nernst
++	setfield Purk_maind/Ca_nernst Cin {CCaI} Cout {CCaO} valency {2} \
++	     scale {1.0} T {37}
++	addmsg Purk_maind/Ca_pool Purk_maind/Ca_nernst CIN Ca
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaP EK E
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaT EK E
++
++	/* make thick dendrite prototype with fast Ca current */
++	/* similar to main dendrite but has CaP and no Kdr */
++	/* passive prototype already copied from Purk_maind */
++	copy Purk_CaT Purk_thickd/CaT
++	addmsg Purk_thickd Purk_thickd/CaT VOLTAGE Vm
++	addmsg Purk_thickd/CaT Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaT Gbar {{GCaTt}*surf}
++	copy Purk_CaP Purk_thickd/CaP
++	addmsg Purk_thickd Purk_thickd/CaP VOLTAGE Vm
++	addmsg Purk_thickd/CaP Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaP Gbar {{GCaPt}*surf}
++	copy Purk_KM Purk_thickd/KM
++	addmsg Purk_thickd Purk_thickd/KM VOLTAGE Vm
++	addmsg Purk_thickd/KM Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KM Gbar {{GKMt}*surf}
++	copy Purk_KC Purk_thickd/KC
++	addmsg Purk_thickd Purk_thickd/KC VOLTAGE Vm
++	addmsg Purk_thickd/KC Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KC Gbar {{GKCt}*surf}
++	copy Purk_K2 Purk_thickd/K2
++	addmsg Purk_thickd Purk_thickd/K2 VOLTAGE Vm
++	addmsg Purk_thickd/K2 Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/K2 Gbar {{GK2t}*surf}
++	create Ca_concen Purk_thickd/Ca_pool
++	setfield Purk_thickd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_thickd/CaT Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/CaP Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/Ca_pool Purk_thickd/KC CONCEN Ca
++	addmsg Purk_thickd/Ca_pool Purk_thickd/K2 CONCEN Ca
++	create nernst Purk_thickd/Ca_nernst
++	setfield Purk_thickd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_thickd/Ca_pool Purk_thickd/Ca_nernst CIN Ca
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaP EK E
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaT EK E
++	for (i=1; i<=2; i = i+1)
++	    copy GABA Purk_thickd/stell{i}
++	    setfield Purk_thickd/stell{i} gmax {{G_GABA}/5*surf}
++	    addmsg Purk_thickd/stell{i} Purk_thickd CHANNEL Gk Ek
++		addmsg Purk_thickd  Purk_thickd/stell{i}  VOLTAGE Vm
++	end
++
++	/* make spiny dendrite prototype with high threshold Ca current  \
++	    */
++	/* passive prototype already copied from Purk_maind */
++	copy Purk_CaT Purk_spinyd/CaT
++	addmsg Purk_spinyd Purk_spinyd/CaT VOLTAGE Vm
++	addmsg Purk_spinyd/CaT Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaT Gbar {{GCaTd}*surf}
++	copy Purk_CaP Purk_spinyd/CaP
++	addmsg Purk_spinyd Purk_spinyd/CaP VOLTAGE Vm
++	addmsg Purk_spinyd/CaP Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaP Gbar {{GCaPd}*surf}
++	copy Purk_KM Purk_spinyd/KM
++	addmsg Purk_spinyd Purk_spinyd/KM VOLTAGE Vm
++	addmsg Purk_spinyd/KM Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KM Gbar {{GKMd}*surf}
++	copy Purk_KC Purk_spinyd/KC
++	addmsg Purk_spinyd Purk_spinyd/KC VOLTAGE Vm
++	addmsg Purk_spinyd/KC Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KC Gbar {{GKCd}*surf}
++	copy Purk_K2 Purk_spinyd/K2
++	addmsg Purk_spinyd Purk_spinyd/K2 VOLTAGE Vm
++	addmsg Purk_spinyd/K2 Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/K2 Gbar {{GK2d}*surf}
++	create Ca_concen Purk_spinyd/Ca_pool
++	setfield Purk_spinyd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_spinyd/CaP Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/CaT Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/KC CONCEN Ca
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/K2 CONCEN Ca
++	create nernst Purk_spinyd/Ca_nernst
++	setfield Purk_spinyd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/Ca_nernst CIN Ca
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaP EK E
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaT EK E
++	copy GABA Purk_spinyd/stell
++	setfield Purk_spinyd/stell gmax {{G_GABA}*surf}
++	addmsg Purk_spinyd/stell Purk_spinyd CHANNEL Gk Ek
++	addmsg Purk_spinyd  Purk_spinyd/stell  VOLTAGE Vm
++end
++
++/*********************************************************************/
++function make_Purkinje_spines
++/* separate function so we can have local variables */
++/* one standard format, may be rescaled in attach_spines */
++/* Reference: Harris KM, Stevens JK: Dendritic spines of rat
++**  cerebellar Purkinje cells: serial electron microscopy with
++**  reference to their biophysical characteristics.  J Neurosci 8: p
++**  4455-4469, 1988. */
++
++	float len, dia, surf, vol
++
++    /* make spine with average length and diameter */
++	/* make spine neck */
++	len = 0.66e-6
++	dia = 0.20e-6
++	surf = len*dia*{PI}
++	vol = len*dia*dia*{PI}/4.0
++	if (!({exists Purk_spine}))
++		create compartment Purk_spine
++	end
++	setfield Purk_spine Cm {{CM}*surf}  \
++	    Ra {4.0*{RA}*len/(dia*dia*{PI})} Em {ELEAK}  \
++	    initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0 x {len} dia {dia} \
++		len {len}
++
++	/* make spine head */
++	len = 0.00e-6
++	// derived from average surface
++	dia = 0.54e-6
++	surf = dia*dia*{PI}
++	create compartment Purk_spine/head
++	setfield Purk_spine/head Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})} \
++	     Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++	    x {dia} dia {dia} len {len}
++
++	/* make a combined prototype: neck+head */
++	addmsg Purk_spine/head Purk_spine RAXIAL Ra Vm
++	addmsg Purk_spine Purk_spine/head AXIAL Vm
++
++	copy Purk_spine Purk_spine2
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA Purk_spine/head/par
++	setfield Purk_spine/head/par gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine/head  Purk_spine/head/par	VOLTAGE Vm
++	addmsg Purk_spine/head/par Purk_spine/head CHANNEL Gk Ek
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA2 Purk_spine2/head/par2
++	setfield Purk_spine2/head/par2 gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine2/head  Purk_spine2/head/par2	VOLTAGE Vm
++	addmsg Purk_spine2/head/par2 Purk_spine2/head CHANNEL Gk Ek
++
++end
++/*********************************************************************/
+Index: 0.58/Purk_hfipassconst.g
+--- 0.58/Purk_hfipassconst.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_hfipassconst.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/18_Purk_hfipa 1.1 640)
+@@ -0,0 +1,70 @@
++//genesis  - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/* This file defines important simulation parameters, including gmax
++** and Ek for all channels.  Everything uses SI units. */
++
++echo Using Purkinje 2M9 preferences. Crank Nicholson method.
++/* variables controlling hsolve integration */
++float dt = 2.0e-5
++int tab_xdivs = 149
++int tab_xfills = 2999
++
++/* The model is quite sensitive to these values in NO_INTERP (caclmode=0) */
++float tab_xmin = -0.10
++float tab_xmax = 0.05
++float Ca_tab_max = 0.300
++
++// only used for proto channels
++float GNa = 1, GCa = 1, GK = 1, Gh = 1
++/* cable parameters */
++float CM = 0.0164 		// *9 relative to passive
++float RMs = 1.000 		// /3.7 relative to passive comp
++float RMd = 3.0
++float RA = 2.50
++/* preset constants */
++float ELEAK = -0.0800 		// Ek value used for the leak conductance
++float EREST_ACT = -0.0680 	// Vm value used for the RESET
++/* concentrations */
++float CCaO = 2.4000 		//external Ca as in normal slice Ringer
++float CCaI = 0.000040		//internal Ca in mM
++//diameter of Ca_shells
++float Shell_thick = 0.20e-6
++float CaTau = 0.00010	 	// Ca_concen tau
++/* Currents: Reversal potentials in V and max conductances S/m^2 */
++/* Codes: s=soma, m=main dendrite, t=thick dendrite, d=spiny dendrite */
++float ENa = 0.045
++float GNaFs = 75000.0
++float GNaPs = 10.0
++float ECa = 0.0125*{log {CCaO/CCaI}} // 0.135 V
++float GCaTs = 5.00
++float GCaTm = 0//5.00
++float GCaTt = 0//5.00
++float GCaTd = 0//5.00
++float GCaPm = 0//45.0
++float GCaPt = 0//45.0
++float GCaPd = 0//45.0
++float EK = -0.085
++float GKAs = 150.0
++float GKAm = 0//20.0
++float GKdrs = 6000.0
++float GKdrm = 0//600.0
++float GKMs = 0.400
++float GKMm = 0//0.100
++float GKMt = 0//0.130
++float GKMd = 0//0.130
++float GKCm = 0//800.0
++float GKCt = 0//800.0
++float GKCd = 0//800.0
++float GK2m = 0//3.90
++float GK2t = 0//3.90
++float GK2d = 0//3.90
++float Eh = -0.030
++float Ghs = 3.00
++/* synapses: */
++float E_GABA = -0.080
++float G_GABA = 70.0/(dt*1000)
++float GB_GABA = 20.0/dt
++float E_non_NMDA = 0.000
++float G_par_syn = 750.0/dt
++float G_cli_syn = 150.0/dt
+Index: 0.58/Purk_hfihfeconst.g
+--- 0.58/Purk_hfihfeconst.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_hfihfeconst.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/19_Purk_hfihf 1.1 640)
+@@ -0,0 +1,70 @@
++//genesis  - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/* This file defines important simulation parameters, including gmax
++** and Ek for all channels.  Everything uses SI units. */
++
++echo Using Purkinje 2M9 preferences. Crank Nicholson method.
++/* variables controlling hsolve integration */
++float dt = 2.0e-5
++int tab_xdivs = 149
++int tab_xfills = 2999
++
++/* The model is quite sensitive to these values in NO_INTERP (caclmode=0) */
++float tab_xmin = -0.10
++float tab_xmax = 0.05
++float Ca_tab_max = 0.300
++
++// only used for proto channels
++float GNa = 1, GCa = 1, GK = 1, Gh = 1
++/* cable parameters */
++float CM = 0.0164 		// *9 relative to passive
++float RMs = 1.000 		// /3.7 relative to passive comp
++float RMd = 3.0
++float RA = 2.50
++/* preset constants */
++float ELEAK = -0.0800 		// Ek value used for the leak conductance
++float EREST_ACT = -0.0680 	// Vm value used for the RESET
++/* concentrations */
++float CCaO = 2.4000 		//external Ca as in normal slice Ringer
++float CCaI = 0.000040		//internal Ca in mM
++//diameter of Ca_shells
++float Shell_thick = 0.20e-6
++float CaTau = 0.00010	 	// Ca_concen tau
++/* Currents: Reversal potentials in V and max conductances S/m^2 */
++/* Codes: s=soma, m=main dendrite, t=thick dendrite, d=spiny dendrite */
++float ENa = 0.045
++float GNaFs = 75000.0
++float GNaPs = 10.0
++float ECa = 0.0125*{log {CCaO/CCaI}} // 0.135 V
++float GCaTs = 5.00
++float GCaTm = 5.00
++float GCaTt = 5.00
++float GCaTd = 5.00
++float GCaPm = 45.0
++float GCaPt = 45.0
++float GCaPd = 45.0
++float EK = -0.085
++float GKAs = 150.0
++float GKAm = 20.0
++float GKdrs = 6000.0
++float GKdrm = 600.0
++float GKMs = 0.400
++float GKMm = 0.100
++float GKMt = 0.130
++float GKMd = 0.130
++float GKCm = 800.0
++float GKCt = 800.0
++float GKCd = 800.0
++float GK2m = 3.90
++float GK2t = 3.90
++float GK2d = 3.90
++float Eh = -0.030
++float Ghs = 3.00
++/* synapses: */
++float E_GABA = -0.080
++float G_GABA = 70.0/(dt*1000)
++float GB_GABA = 20.0/dt
++float E_non_NMDA = 0.000
++float G_par_syn = 750.0/(dt*1000)
++float G_cli_syn = 150.0/dt
+Index: 0.58/Purk_hficonst.g
+--- 0.58/Purk_hficonst.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_hficonst.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/20_Purk_hfico 1.1 640)
+@@ -0,0 +1,70 @@
++//genesis  - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/* This file defines important simulation parameters, including gmax
++** and Ek for all channels.  Everything uses SI units. */
++
++echo Using Purkinje 2M9 preferences. Crank Nicholson method.
++/* variables controlling hsolve integration */
++float dt = 2.0e-5
++int tab_xdivs = 149
++int tab_xfills = 2999
++
++/* The model is quite sensitive to these values in NO_INTERP (caclmode=0) */
++float tab_xmin = -0.10
++float tab_xmax = 0.05
++float Ca_tab_max = 0.300
++
++// only used for proto channels
++float GNa = 1, GCa = 1, GK = 1, Gh = 1
++/* cable parameters */
++float CM = 0.0164 		// *9 relative to passive
++float RMs = 1.000 		// /3.7 relative to passive comp
++float RMd = 3.0
++float RA = 2.50
++/* preset constants */
++float ELEAK = -0.0800 		// Ek value used for the leak conductance
++float EREST_ACT = -0.0680 	// Vm value used for the RESET
++/* concentrations */
++float CCaO = 2.4000 		//external Ca as in normal slice Ringer
++float CCaI = 0.000040		//internal Ca in mM
++//diameter of Ca_shells
++float Shell_thick = 0.20e-6
++float CaTau = 0.00010	 	// Ca_concen tau
++/* Currents: Reversal potentials in V and max conductances S/m^2 */
++/* Codes: s=soma, m=main dendrite, t=thick dendrite, d=spiny dendrite */
++float ENa = 0.045
++float GNaFs = 75000.0
++float GNaPs = 10.0
++float ECa = 0.0125*{log {CCaO/CCaI}} // 0.135 V
++float GCaTs = 5.00
++float GCaTm = 5.00
++float GCaTt = 5.00
++float GCaTd = 5.00
++float GCaPm = 45.0
++float GCaPt = 45.0
++float GCaPd = 45.0
++float EK = -0.085
++float GKAs = 150.0
++float GKAm = 20.0
++float GKdrs = 6000.0
++float GKdrm = 600.0
++float GKMs = 0.400
++float GKMm = 0.100
++float GKMt = 0.130
++float GKMd = 0.130
++float GKCm = 800.0
++float GKCt = 800.0
++float GKCd = 800.0
++float GK2m = 3.90
++float GK2t = 3.90
++float GK2d = 3.90
++float Eh = -0.030
++float Ghs = 3.00
++/* synapses: */
++float E_GABA = -0.080
++float G_GABA = 70.0/(dt*1000)
++float GB_GABA = 20.0/dt
++float E_non_NMDA = 0.000
++float G_par_syn = 750.0/dt
++float G_cli_syn = 150.0/dt
+Index: 0.58/Purk_hfi2const.g
+--- 0.58/Purk_hfi2const.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_hfi2const.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/21_Purk_hfi2c 1.1 640)
+@@ -0,0 +1,70 @@
++//genesis  - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/* This file defines important simulation parameters, including gmax
++** and Ek for all channels.  Everything uses SI units. */
++
++echo Using Purkinje 2M9 preferences. Crank Nicholson method.
++/* variables controlling hsolve integration */
++float dt = 2.0e-5
++int tab_xdivs = 149
++int tab_xfills = 2999
++
++/* The model is quite sensitive to these values in NO_INTERP (caclmode=0) */
++float tab_xmin = -0.10
++float tab_xmax = 0.05
++float Ca_tab_max = 0.300
++
++// only used for proto channels
++float GNa = 1, GCa = 1, GK = 1, Gh = 1
++/* cable parameters */
++float CM = 0.0164 		// *9 relative to passive
++float RMs = 1.000 		// /3.7 relative to passive comp
++float RMd = 3.0
++float RA = 2.50
++/* preset constants */
++float ELEAK = -0.0800 		// Ek value used for the leak conductance
++float EREST_ACT = -0.0680 	// Vm value used for the RESET
++/* concentrations */
++float CCaO = 2.4000 		//external Ca as in normal slice Ringer
++float CCaI = 0.000040		//internal Ca in mM
++//diameter of Ca_shells
++float Shell_thick = 0.20e-6
++float CaTau = 0.00010	 	// Ca_concen tau
++/* Currents: Reversal potentials in V and max conductances S/m^2 */
++/* Codes: s=soma, m=main dendrite, t=thick dendrite, d=spiny dendrite */
++float ENa = 0.045
++float GNaFs = 75000.0
++float GNaPs = 10.0
++float ECa = 0.0125*{log {CCaO/CCaI}} // 0.135 V
++float GCaTs = 5.00
++float GCaTm = 5.00
++float GCaTt = 5.00
++float GCaTd = 5.00
++float GCaPm = 45.0
++float GCaPt = 45.0
++float GCaPd = 45.0
++float EK = -0.085
++float GKAs = 150.0
++float GKAm = 20.0
++float GKdrs = 6000.0
++float GKdrm = 600.0
++float GKMs = 0.400
++float GKMm = 0.100
++float GKMt = 0.130
++float GKMd = 0.130
++float GKCm = 800.0
++float GKCt = 800.0
++float GKCd = 800.0
++float GK2m = 3.90
++float GK2t = 3.90
++float GK2d = 3.90
++float Eh = -0.030
++float Ghs = 3.00
++/* synapses: */
++float E_GABA = -0.080
++float G_GABA = 70.0/(dt*4000)
++float GB_GABA = 20.0/dt
++float E_non_NMDA = 0.000
++float G_par_syn = 750.0/dt
++float G_cli_syn = 150.0/dt
+Index: 0.58/Purk_bicomp.g
+--- 0.58/Purk_bicomp.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/Purk_bicomp.g Wed, 27 Sep 2000 11:06:49 +0200 hugo (purkinje/b/22_Purk_bicom 1.1 640)
+@@ -0,0 +1,296 @@
++//genesis - Purkinje cell M9 genesis2.1 script
++/* Copyright E. De Schutter (Caltech and BBF-UIA) */
++
++/**********************************************************************
++** Sets up active membrane Purkinje cell compartment prototypes 
++**  and dendritic spine prototypes.
++** E. De Schutter, Caltech, 1991-1992
++** This version sets up active compartments with stellate cell synapses.
++**********************************************************************/
++
++/* References:
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell. I. Simulation of current clamps in slice.
++** Journal of Neurophysiology  71: 375-400 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub8.html
++** E. De Schutter and J.M. Bower: An active membrane model of the
++** cerebellar Purkinje cell: II. Simulation of synaptic responses.
++** Journal of Neurophysiology  71: 401-419 (1994).
++** http://www.bbf.uia.ac.be/TNB/TNB_pub7.html
++** Consult these references for sources of experimental data.
++** See http://www.bbf.uia.ac.be/models/PM9.shtml for general model info.
++*/
++
++function make_Purkinje_comps
++/* separate function so we can have local variables */
++
++	float len, dia, surf, shell_vol, shell_dia
++	int i
++
++	echo making Purkinje compartment library...
++
++	/* make spherical soma prototype with sodium currents*/
++	len = 0.00e-6
++	dia = 20.0e-6
++	surf = dia*dia*{PI}
++	shell_dia = 2*{Shell_thick}
++	shell_vol = (3*dia*dia*shell_dia - 3*dia*shell_dia*shell_dia + shell_dia*shell_dia*shell_dia)*{PI}/6.0
++	if (!({exists Purk_soma}))
++		create compartment Purk_soma
++	end
++	setfield Purk_soma Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})}  \
++	    Em {ELEAK} initVm {EREST_ACT} Rm {{RMs}/surf} inject 0.0  \
++	    dia {dia} len {len}
++
++	copy Purk_NaF Purk_soma/NaF
++	addmsg Purk_soma Purk_soma/NaF VOLTAGE Vm
++	addmsg Purk_soma/NaF Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/NaF Gbar {{GNaFs}*surf}
++	copy Purk_NaP Purk_soma/NaP
++	addmsg Purk_soma Purk_soma/NaP VOLTAGE Vm
++	addmsg Purk_soma/NaP Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/NaP Gbar {{GNaPs}*surf}
++	copy Purk_CaT Purk_soma/CaT
++	addmsg Purk_soma Purk_soma/CaT VOLTAGE Vm
++	addmsg Purk_soma/CaT Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/CaT Gbar {{GCaTs}*surf}
++	copy Purk_KA Purk_soma/KA
++	addmsg Purk_soma Purk_soma/KA VOLTAGE Vm
++	addmsg Purk_soma/KA Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/KA Gbar {{GKAs}*surf}
++	copy Purk_Kdr Purk_soma/Kdr
++	addmsg Purk_soma Purk_soma/Kdr VOLTAGE Vm
++	addmsg Purk_soma/Kdr Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/Kdr Gbar {{GKdrs}*surf}
++	copy Purk_KM Purk_soma/KM
++	addmsg Purk_soma Purk_soma/KM VOLTAGE Vm
++	addmsg Purk_soma/KM Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/KM Gbar {{GKMs}*surf}
++	copy Purk_h1 Purk_soma/h1
++	addmsg Purk_soma Purk_soma/h1 VOLTAGE Vm
++	addmsg Purk_soma/h1 Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/h1 Gbar {{Ghs}*surf}
++	copy Purk_h2 Purk_soma/h2
++	addmsg Purk_soma Purk_soma/h2 VOLTAGE Vm
++	addmsg Purk_soma/h2 Purk_soma CHANNEL Gk Ek
++	setfield Purk_soma/h2 Gbar {{Ghs}*surf}
++	create Ca_concen Purk_soma/Ca_pool
++	setfield Purk_soma/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_soma/CaT Purk_soma/Ca_pool I_Ca Ik
++	copy GABA2 Purk_soma/basket
++	setfield Purk_soma/basket gmax    {{GB_GABA}*surf}
++	addmsg Purk_soma/basket  Purk_soma  CHANNEL Gk  Ek
++	addmsg Purk_soma  Purk_soma/basket    VOLTAGE Vm
++
++    /* make main dendrite prototype with fast Ca currents */
++    len = 200.00e-6
++    dia = 2.00e-6
++    surf = len*dia*{PI}
++    shell_vol = (2*dia*shell_dia - shell_dia*shell_dia)*len*{PI}/4.0
++    if (!({exists Purk_maind}))
++        create compartment Purk_maind
++    end
++    setfield Purk_maind Cm {{CM}*surf} Ra {4.0*{RA}*len/(dia*dia*{PI})}  \
++        Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++        dia {dia} len {len}
++
++    if (!({exists Purk_thickd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_thickd
++    end
++    if (!({exists Purk_spinyd}))    // Lets copy before we add currents
++
++        copy Purk_maind Purk_spinyd
++    end
++
++	copy Purk_CaT Purk_maind/CaT
++	addmsg Purk_maind Purk_maind/CaT VOLTAGE Vm
++	addmsg Purk_maind/CaT Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaT Gbar {{GCaTm}*surf}
++	copy Purk_KA Purk_maind/KA
++	addmsg Purk_maind Purk_maind/KA VOLTAGE Vm
++	addmsg Purk_maind/KA Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KA Gbar {{GKAm}*surf}
++	copy Purk_Kdr Purk_maind/Kdr
++	addmsg Purk_maind Purk_maind/Kdr VOLTAGE Vm
++	addmsg Purk_maind/Kdr Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/Kdr Gbar {{GKdrm}*surf}
++	copy Purk_KM Purk_maind/KM
++	addmsg Purk_maind Purk_maind/KM VOLTAGE Vm
++	addmsg Purk_maind/KM Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KM Gbar {{GKMm}*surf}
++	copy Purk_CaP Purk_maind/CaP
++	addmsg Purk_maind Purk_maind/CaP VOLTAGE Vm
++	addmsg Purk_maind/CaP Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/CaP Gbar {{GCaPm}*surf}
++	copy Purk_KC Purk_maind/KC
++	addmsg Purk_maind Purk_maind/KC VOLTAGE Vm
++	addmsg Purk_maind/KC Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/KC Gbar {{GKCm}*surf}
++	copy Purk_K2 Purk_maind/K2
++	addmsg Purk_maind Purk_maind/K2 VOLTAGE Vm
++	addmsg Purk_maind/K2 Purk_maind CHANNEL Gk Ek
++	setfield Purk_maind/K2 Gbar {{GK2m}*surf}
++	create Ca_concen Purk_maind/Ca_pool
++	setfield Purk_maind/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_maind/CaT Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/CaP Purk_maind/Ca_pool I_Ca Ik
++	addmsg Purk_maind/Ca_pool Purk_maind/KC CONCEN Ca
++	addmsg Purk_maind/Ca_pool Purk_maind/K2 CONCEN Ca
++	create nernst Purk_maind/Ca_nernst
++	setfield Purk_maind/Ca_nernst Cin {CCaI} Cout {CCaO} valency {2} \
++	     scale {1.0} T {37}
++	addmsg Purk_maind/Ca_pool Purk_maind/Ca_nernst CIN Ca
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaP EK E
++	addmsg Purk_maind/Ca_nernst Purk_maind/CaT EK E
++	copy GABA2 Purk_maind/basket
++	setfield Purk_maind/basket gmax    {{GB_GABA}*surf/2}
++	addmsg Purk_maind/basket  Purk_maind  CHANNEL Gk  Ek
++	addmsg Purk_maind  Purk_maind/basket    VOLTAGE Vm
++
++	/* make thick dendrite prototype with fast Ca current */
++	/* similar to main dendrite but has CaP and no Kdr */
++	/* passive prototype already copied from Purk_maind */
++	copy Purk_CaT Purk_thickd/CaT
++	addmsg Purk_thickd Purk_thickd/CaT VOLTAGE Vm
++	addmsg Purk_thickd/CaT Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaT Gbar {{GCaTt}*surf}
++	copy Purk_CaP Purk_thickd/CaP
++	addmsg Purk_thickd Purk_thickd/CaP VOLTAGE Vm
++	addmsg Purk_thickd/CaP Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/CaP Gbar {{GCaPt}*surf}
++	copy Purk_KM Purk_thickd/KM
++	addmsg Purk_thickd Purk_thickd/KM VOLTAGE Vm
++	addmsg Purk_thickd/KM Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KM Gbar {{GKMt}*surf}
++	copy Purk_KC Purk_thickd/KC
++	addmsg Purk_thickd Purk_thickd/KC VOLTAGE Vm
++	addmsg Purk_thickd/KC Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/KC Gbar {{GKCt}*surf}
++	copy Purk_K2 Purk_thickd/K2
++	addmsg Purk_thickd Purk_thickd/K2 VOLTAGE Vm
++	addmsg Purk_thickd/K2 Purk_thickd CHANNEL Gk Ek
++	setfield Purk_thickd/K2 Gbar {{GK2t}*surf}
++	create Ca_concen Purk_thickd/Ca_pool
++	setfield Purk_thickd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_thickd/CaT Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/CaP Purk_thickd/Ca_pool I_Ca Ik
++	addmsg Purk_thickd/Ca_pool Purk_thickd/KC CONCEN Ca
++	addmsg Purk_thickd/Ca_pool Purk_thickd/K2 CONCEN Ca
++	create nernst Purk_thickd/Ca_nernst
++	setfield Purk_thickd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_thickd/Ca_pool Purk_thickd/Ca_nernst CIN Ca
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaP EK E
++	addmsg Purk_thickd/Ca_nernst Purk_thickd/CaT EK E
++	for (i=1; i<=2; i = i+1)
++	    copy GABA Purk_thickd/stell{i}
++	    setfield Purk_thickd/stell{i} gmax {{G_GABA}/5*surf}
++	    addmsg Purk_thickd/stell{i} Purk_thickd CHANNEL Gk Ek
++		addmsg Purk_thickd  Purk_thickd/stell{i}  VOLTAGE Vm
++	end
++
++	/* make spiny dendrite prototype with high threshold Ca current  \
++	    */
++	/* passive prototype already copied from Purk_maind */
++	copy Purk_CaT Purk_spinyd/CaT
++	addmsg Purk_spinyd Purk_spinyd/CaT VOLTAGE Vm
++	addmsg Purk_spinyd/CaT Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaT Gbar {{GCaTd}*surf}
++	copy Purk_CaP Purk_spinyd/CaP
++	addmsg Purk_spinyd Purk_spinyd/CaP VOLTAGE Vm
++	addmsg Purk_spinyd/CaP Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/CaP Gbar {{GCaPd}*surf}
++	copy Purk_KM Purk_spinyd/KM
++	addmsg Purk_spinyd Purk_spinyd/KM VOLTAGE Vm
++	addmsg Purk_spinyd/KM Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KM Gbar {{GKMd}*surf}
++	copy Purk_KC Purk_spinyd/KC
++	addmsg Purk_spinyd Purk_spinyd/KC VOLTAGE Vm
++	addmsg Purk_spinyd/KC Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/KC Gbar {{GKCd}*surf}
++	copy Purk_K2 Purk_spinyd/K2
++	addmsg Purk_spinyd Purk_spinyd/K2 VOLTAGE Vm
++	addmsg Purk_spinyd/K2 Purk_spinyd CHANNEL Gk Ek
++	setfield Purk_spinyd/K2 Gbar {{GK2d}*surf}
++	create Ca_concen Purk_spinyd/Ca_pool
++	setfield Purk_spinyd/Ca_pool tau {CaTau}  \
++	    B {1.0/(2.0*96494*shell_vol)} Ca_base {CCaI}  \
++	    thick {Shell_thick}
++	addmsg Purk_spinyd/CaP Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/CaT Purk_spinyd/Ca_pool I_Ca Ik
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/KC CONCEN Ca
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/K2 CONCEN Ca
++	create nernst Purk_spinyd/Ca_nernst
++	setfield Purk_spinyd/Ca_nernst Cin {CCaI} Cout {CCaO}  \
++	    valency {2} scale {1.0} T {37}
++	addmsg Purk_spinyd/Ca_pool Purk_spinyd/Ca_nernst CIN Ca
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaP EK E
++	addmsg Purk_spinyd/Ca_nernst Purk_spinyd/CaT EK E
++	copy GABA Purk_spinyd/stell
++	setfield Purk_spinyd/stell gmax {{G_GABA}*surf}
++	addmsg Purk_spinyd/stell Purk_spinyd CHANNEL Gk Ek
++	addmsg Purk_spinyd  Purk_spinyd/stell  VOLTAGE Vm
++end
++
++/*********************************************************************/
++function make_Purkinje_spines
++/* separate function so we can have local variables */
++/* one standard format, may be rescaled in attach_spines */
++/* Reference: Harris KM, Stevens JK: Dendritic spines of rat
++**  cerebellar Purkinje cells: serial electron microscopy with
++**  reference to their biophysical characteristics.  J Neurosci 8: p
++**  4455-4469, 1988. */
++
++	float len, dia, surf, vol
++
++    /* make spine with average length and diameter */
++	/* make spine neck */
++	len = 0.66e-6
++	dia = 0.20e-6
++	surf = len*dia*{PI}
++	vol = len*dia*dia*{PI}/4.0
++	if (!({exists Purk_spine}))
++		create compartment Purk_spine
++	end
++	setfield Purk_spine Cm {{CM}*surf}  \
++	    Ra {4.0*{RA}*len/(dia*dia*{PI})} Em {ELEAK}  \
++	    initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0 x {len} dia {dia} \
++		len {len}
++
++	/* make spine head */
++	len = 0.00e-6
++	// derived from average surface
++	dia = 0.54e-6
++	surf = dia*dia*{PI}
++	create compartment Purk_spine/head
++	setfield Purk_spine/head Cm {{CM}*surf} Ra {8.0*{RA}/(dia*{PI})} \
++	     Em {ELEAK} initVm {EREST_ACT} Rm {{RMd}/surf} inject 0.0  \
++	    x {dia} dia {dia} len {len}
++
++	/* make a combined prototype: neck+head */
++	addmsg Purk_spine/head Purk_spine RAXIAL Ra Vm
++	addmsg Purk_spine Purk_spine/head AXIAL Vm
++
++	copy Purk_spine Purk_spine2
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA Purk_spine/head/par
++	setfield Purk_spine/head/par gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine/head  Purk_spine/head/par	VOLTAGE Vm
++	addmsg Purk_spine/head/par Purk_spine/head CHANNEL Gk Ek
++
++	/* put non-NMDA channel on combined prototype */
++	copy non_NMDA2 Purk_spine2/head/par2
++	setfield Purk_spine2/head/par2 gmax {{G_par_syn}*surf}
++	addmsg  Purk_spine2/head  Purk_spine2/head/par2	VOLTAGE Vm
++	addmsg Purk_spine2/head/par2 Purk_spine2/head CHANNEL Gk Ek
++
++end
++/*********************************************************************/
+Index: 0.58/movie.g
+--- 0.58/movie.g Thu, 04 Apr 2002 11:22:47 +0200 hugo ()
++++ parpat-storage-film.3/movie.g Fri, 29 Sep 2000 20:06:06 +0200 hugo (purkinje/b/8_movie.g 1.2 644)
+@@ -0,0 +1,219 @@
++// genesis
++
++int include_movie
++
++if ( {include_movie} == 0 )
++
++	include_movie = 1
++
++
++int movie_static = 0
++
++
++///
++/// SH:	GIFMake
++///
++/// PA:	xwID....: window ID to create gif file for
++///	label...: label to prepend to the file name
++///	iBegin..: first step
++///	iEnd....: last step
++///
++/// DE:	Dump gif for window xwID, unique for ({label},{time})
++///	
++///
++
++function GIFMake(xwID,label,iBegin,iEnd)
++
++str xwID
++str label
++int iBegin
++int iEnd
++
++	//- get actual step
++
++//	echo {xwID} {label} {iBegin} {iEnd}
++
++	str actual = {getstat -step}
++
++ 	if (actual >= iBegin && actual < iEnd)
++
++/*
++		// dump gif file
++
++		xwd -silent -id {xwID} \
++		| xwdtopnm \
++		| ppmtogif >{label}.{actual}.gif
++*/
++
++		xdump /xcell {label}.{actual}.ppm
++ 	end
++end
++
++
++///
++/// SH:	MovieCreateElements
++///
++/// PA:	path...: parent xform for created elements (ending in '/')
++///	label..: prefix label for filenames
++///	iBegin.: first step
++///	iEnd...: last step
++///
++/// RE: Movie handle
++///
++/// DE:	Create elements for creating a movie of the given xform
++///	Created elements use clock 11
++///
++
++function MovieCreateElements(path,label,iBegin,iEnd)
++
++str path
++str label
++int iBegin
++int iEnd
++
++	//- give diagnostics
++
++	echo "Creating movie elements for "{path}" with label "{label}
++
++	//- create a movie handle
++
++	str movieHandle = { {path} @ "_movie" @ {movie_static} }
++
++	//- create script out
++
++	create script_out {movieHandle}
++
++	//- add and set path field
++
++	addfield {movieHandle} path -description "Path to take snapshots from"
++
++	setfield {movieHandle} \
++		path {path}
++
++	//- increment movie element count
++
++	movie_static = {movie_static} + 1
++
++	//- set clock
++
++	useclock {movieHandle} 11
++
++	//- set command to create an image at every time step
++
++/*
++** failure of lexical analyzer with this one
++**
++	setfield ^ \
++		command {"xwd -silent -id " \
++			 @ {getfield {path} xwID} \
++			 @ " | xwdtopnm | ppmtogif >" \
++			 @ {label} \
++			 @ ".{getstat -time}" \
++			 @ ".gif"}
++*/
++
++	setfield {movieHandle} \
++		command {"GIFMake " \
++			 @ {getfield {path} xwID} \
++			 @ " " \
++			 @ {label} \
++			 @ " " \
++			 @ {iBegin} \
++			 @ " " \
++			 @ {iEnd}}
++
++//	create script_out {path}sched
++
++//	useclock ^ 10
++
++//	setfield ^ command "echo Scheduled at {getstat -time}"
++
++	//- schedule elements
++
++	//call {path}_movie RESET
++
++	reset
++
++	//- return created movie handle 
++
++	return {movieHandle}
++end
++
++
++///
++/// SH:	MovieSchedule
++///
++/// PA:	handle.: movie handle to schedule
++///	label..: prefix label for filenames
++///	iBegin.: first step
++///	iEnd...: last step
++///
++/// DE:	Schedule a movie handle
++///
++///	first call MovieCreateElements on the given xform to init.
++///
++
++function MovieSchedule(handle,label,iBegin,iEnd)
++
++str handle
++str label
++int iBegin
++int iEnd
++
++	//- give diagnostics
++
++	echo "Scheduling movie elements for "{handle}" with label "{label}
++
++	//- set command to create an image at every time step
++
++/*
++** failure of lexical analyzer with this one
++**
++	setfield ^ \
++		command {"xwd -silent -id " \
++			 @ {getfield {path} xwID} \
++			 @ " | xwdtopnm | ppmtogif >" \
++			 @ {label} \
++			 @ ".{getstat -time}" \
++			 @ ".gif"}
++*/
++
++	//echo "Film for widget : "{getfield {handle} path}
++
++/*
++** script_out cannot handle added fields, {path} not available
++*/
++/* 	setfield {handle} \ */
++/* 		command {"GIFMake " \ */
++/* 			 @ {getfield {getfield {handle} path} xwID} \ */
++/* 			 @ " " \ */
++/* 			 @ {label} \ */
++/* 			 @ " " \ */
++/* 			 @ {iBegin} \ */
++/* 			 @ " " \ */
++/* 			 @ {iEnd}} */
++
++/*
++** hardcoded path
++*/
++
++	setfield {handle} \
++		command {"GIFMake " \
++			 @ {getfield "/xcell" xwID} \
++			 @ " " \
++			 @ {label} \
++			 @ " " \
++			 @ {iBegin} \
++			 @ " " \
++			 @ {iEnd}}
++
++	//- schedule elements
++
++	call {handle} RESET
++
++end
++
++
++end
++
++

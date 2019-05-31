@@ -1,0 +1,34 @@
+prcs: Producing diffs from 0.43 to SimulationActions.1.
+Index: 0.43/control.g
+--- 0.43/control.g Mon, 27 Dec 1999 18:35:54 +0100 hugo (purkinje/31_control.g 1.14.1.1.2.1.1.1 664)
++++ SimulationActions.1/control.g Mon, 27 Dec 1999 19:15:17 +0100 hugo (purkinje/31_control.g 1.14.1.1.2.1.1.2 664)
+@@ -579,7 +579,7 @@
+ 
+ 	//- create form for control panel
+ 
+-	create xform /control [0, 490, 300, 340]
++	create xform /control [0, 490, 300, 360]
+ 	
+ 	//- make it the current element
+ 
+@@ -745,6 +745,11 @@
+ 		-title "Settings" \
+ 		-script "SettingsIClamp"
+ 
++	//- create a simulation actions label
++
++	create xlabel actions \
++		-label "Simulation actions"
++
+ 	//- create the parallel fiber button
+ 
+ 	create xbutton parallel \
+@@ -756,7 +761,7 @@
+ 
+ 	create xbutton parallelSettings \
+ 		-xgeom 0:last.right \
+-		-ygeom 0:iClamp \
++		-ygeom 0:actions \
+ 		-wgeom 30% \
+ 		-title "Settings" \
+ 		-script "SettingsParallel"

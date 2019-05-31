@@ -1,0 +1,379 @@
+prcs: Producing diffs from 0.58 to purkinje-film.1.
+Index: 0.58/xcell.g
+--- 0.58/xcell.g Thu, 30 Mar 2000 16:43:16 +0200 hugo (purkinje/21_xcell.g 1.1.1.6.1.5.2.6.1.1.2.1 644)
++++ purkinje-film.1/xcell.g Mon, 21 Aug 2000 12:21:58 +0200 hugo (purkinje/21_xcell.g 1.1.1.6.1.5.2.6.1.1.2.1.1.1 644)
+@@ -117,6 +117,9 @@
+ //////////////////////////////////////////////////////////////////////////////
+ 
+ 
++include movie.g
++
++
+ //v bool to indicate first toggle for tabchannel has been created
+ 
+ int bButtonsCreated = 0
+@@ -129,6 +132,10 @@
+ 
+ str strXCLibrary = "XCLib"
+ 
++//v movie handle for xcell widget
++
++str xcellMovieHandle = ""
++
+ 
+ ///
+ /// SH:	XCellElectrodeName
+@@ -1964,13 +1971,46 @@
+ 		-offlabel "No Electrodes" \
+ 		-script "XCellSetupElectrodes <v>"
+ 
+-	//- create label as seperator
++/*
++** original code from -r 0
++**
++*/
++/* 	//- create label as seperator */
++
++/* 	create xlabel /xcell/sep3 \ */
++/* 		-xgeom 70% \ */
++/* 		-ygeom 6:graph.top \ */
++/* 		-wgeom 30% \ */
++/* 		-title "" */
++
++	//- create button for film settings
+ 
+-	create xlabel /xcell/sep3 \
++	create xbutton /xcell/filmSettings \
+ 		-xgeom 70% \
+-		-ygeom 6:graph.top \
+-		-wgeom 30% \
+-		-title ""
++		-ygeom 4:graph.top \
++		-wgeom 20% \
++		-title "Settings" \
++		-script "echo Film settings"
++
++	//- create toggle to enable filming
++
++	create xtoggle /xcell/filmToggle \
++		-xgeom 0:filmSettings.right \
++		-ygeom 4:graph.top \
++		-wgeom 10% \
++		-title "Film" \
++		-script "XCellCBScheduleMovie <value>"
++
++	//- remove previous movie images
++
++	sh "rm 2>/dev/null -f /tmp/movies/*"
++
++	//- create movie elements
++
++	sh "mkdir 2>/dev/null /tmp/movies"
++
++	xcellMovieHandle \
++		= {MovieCreateElements /xcell/ /tmp/movies/purkinje 0 0}
+ 
+ 	//- create toggle to change normalized / absolute output
+ 
+@@ -2210,6 +2250,66 @@
+ 
+ 			XCellAddElectrode {path} {electrode} {color}
+ 		end
++	end
++end
++
++
++///
++/// SH:	XCellCBScheduleMovie
++///
++/// PA:	movieHandle...:	movie handle to schedule
++///	bOn...........: 1 == schedule, 0 == do not schedule
++///
++/// DE:	Rechedule a movie handle
++///
++/// NO: It seems impossible to pass variable from Xodus script fields,
++///	hardcoded {{xcellMovieHandle}}
++///
++
++function XCellCBScheduleMovie(bOn)
++
++int bOn
++
++	//- if turn on
++
++	if ( {bOn} == 1 )
++
++		//- diag's
++
++		echo "Enabling movie "{{xcellMovieHandle}}
++
++		//- schedule
++
++		MovieSchedule \
++			{{xcellMovieHandle}} \
++			/tmp/movies/purkinje \
++			{getstat -step} \
++			10000000
++
++	//- else if turn off
++
++	elif ( {bOn} == 0 )
++
++		//- diag's
++
++		echo "Disabling movie "{{xcellMovieHandle}}
++
++		//- schedule
++
++		MovieSchedule \
++			{{xcellMovieHandle}} \
++			/tmp/movies/purkinje \
++			0 \
++			0
++
++	//- else
++
++	else
++
++		//- diag's
++
++		echo "XCellCBScheduleMovie : Wrong mode requested for movie"
++
+ 	end
+ end
+ 
+Index: 0.58/TUTORIAL.g
+--- 0.58/TUTORIAL.g Tue, 04 Jan 2000 15:16:41 +0100 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6.3.1.1.1 640)
++++ purkinje-film.1/TUTORIAL.g Mon, 21 Aug 2000 12:21:58 +0200 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6.3.1.1.1.2.1 640)
+@@ -264,6 +264,10 @@
+ 
+ setclock 10 {dt * 239}
+ 
++//- set clock for movie elements
++
++setclock 11 {dt * outputRate}
++
+ //- set delay in steps for climbing fiber
+ 
+ delaysteps = {delay / dt}
+Index: 0.58/movie.g
+--- 0.58/movie.g Thu, 04 Apr 2002 11:33:32 +0200 hugo ()
++++ purkinje-film.1/movie.g Mon, 21 Aug 2000 12:21:58 +0200 hugo (purkinje/b/8_movie.g 1.1 644)
+@@ -0,0 +1,217 @@
++// genesis
++
++int include_movie
++
++if ( {include_movie} == 0 )
++
++	include_movie = 1
++
++
++int movie_static = 0
++
++
++///
++/// SH:	GIFMake
++///
++/// PA:	xwID....: window ID to create gif file for
++///	label...: label to prepend to the file name
++///	iBegin..: first step
++///	iEnd....: last step
++///
++/// DE:	Dump gif for window xwID, unique for ({label},{time})
++///	
++///
++
++function GIFMake(xwID,label,iBegin,iEnd)
++
++str xwID
++str label
++int iBegin
++int iEnd
++
++	//- get actual step
++
++	str actual = {getstat -step}
++
++	if (actual >= iBegin && actual < iEnd)
++
++/*
++		// dump gif file
++
++		xwd -silent -id {xwID} \
++		| xwdtopnm \
++		| ppmtogif >{label}.{actual}.gif
++*/
++
++		xdump /xcell {label}.{actual}.ppm
++	end
++end
++
++
++///
++/// SH:	MovieCreateElements
++///
++/// PA:	path...: parent xform for created elements (ending in '/')
++///	label..: prefix label for filenames
++///	iBegin.: first step
++///	iEnd...: last step
++///
++/// RE: Movie handle
++///
++/// DE:	Create elements for creating a movie of the given xform
++///	Created elements use clock 11
++///
++
++function MovieCreateElements(path,label,iBegin,iEnd)
++
++str path
++str label
++int iBegin
++int iEnd
++
++	//- give diagnostics
++
++	echo "Creating movie elements for "{path}" with label "{label}
++
++	//- create a movie handle
++
++	str movieHandle = { {path} @ "_movie" @ {movie_static} }
++
++	//- create script out
++
++	create script_out {movieHandle}
++
++	//- add and set path field
++
++	addfield {movieHandle} path -description "Path to take snapshots from"
++
++	setfield {movieHandle} \
++		path {path}
++
++	//- increment movie element count
++
++	movie_static = {movie_static} + 1
++
++	//- set clock
++
++	useclock {movieHandle} 11
++
++	//- set command to create an image at every time step
++
++/*
++** failure of lexical analyzer with this one
++**
++	setfield ^ \
++		command {"xwd -silent -id " \
++			 @ {getfield {path} xwID} \
++			 @ " | xwdtopnm | ppmtogif >" \
++			 @ {label} \
++			 @ ".{getstat -time}" \
++			 @ ".gif"}
++*/
++
++	setfield {movieHandle} \
++		command {"GIFMake " \
++			 @ {getfield {path} xwID} \
++			 @ " " \
++			 @ {label} \
++			 @ " " \
++			 @ {iBegin} \
++			 @ " " \
++			 @ {iEnd}}
++
++//	create script_out {path}sched
++
++//	useclock ^ 10
++
++//	setfield ^ command "echo Scheduled at {getstat -time}"
++
++	//- schedule elements
++
++	//call {path}_movie RESET
++
++	reset
++
++	//- return created movie handle 
++
++	return {movieHandle}
++end
++
++
++///
++/// SH:	MovieSchedule
++///
++/// PA:	handle.: movie handle to schedule
++///	label..: prefix label for filenames
++///	iBegin.: first step
++///	iEnd...: last step
++///
++/// DE:	Schedule a movie handle
++///
++///	first call MovieCreateElements on the given xform to init.
++///
++
++function MovieSchedule(handle,label,iBegin,iEnd)
++
++str handle
++str label
++int iBegin
++int iEnd
++
++	//- give diagnostics
++
++	echo "Scheduling movie elements for "{handle}" with label "{label}
++
++	//- set command to create an image at every time step
++
++/*
++** failure of lexical analyzer with this one
++**
++	setfield ^ \
++		command {"xwd -silent -id " \
++			 @ {getfield {path} xwID} \
++			 @ " | xwdtopnm | ppmtogif >" \
++			 @ {label} \
++			 @ ".{getstat -time}" \
++			 @ ".gif"}
++*/
++
++	//echo "Film for widget : "{getfield {handle} path}
++
++/*
++** script_out cannot handle added fields, {path} not available
++*/
++/* 	setfield {handle} \ */
++/* 		command {"GIFMake " \ */
++/* 			 @ {getfield {getfield {handle} path} xwID} \ */
++/* 			 @ " " \ */
++/* 			 @ {label} \ */
++/* 			 @ " " \ */
++/* 			 @ {iBegin} \ */
++/* 			 @ " " \ */
++/* 			 @ {iEnd}} */
++
++/*
++** hardcoded path
++*/
++
++	setfield {handle} \
++		command {"GIFMake " \
++			 @ {getfield "/xcell" xwID} \
++			 @ " " \
++			 @ {label} \
++			 @ " " \
++			 @ {iBegin} \
++			 @ " " \
++			 @ {iEnd}}
++
++	//- schedule elements
++
++	call {handle} RESET
++
++end
++
++
++end
++
++

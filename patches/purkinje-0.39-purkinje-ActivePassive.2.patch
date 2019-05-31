@@ -1,0 +1,523 @@
+prcs: Producing diffs from 0.39 to ActivePassive.2.
+Index: 0.39/Purk2M9s.p.config
+--- 0.39/Purk2M9s.p.config Mon, 25 Jan 1999 16:30:02 +0100 hugo (purkinje/5_Purk2M9s.p 1.1 664)
++++ ActivePassive.2/Purk2M9s.p.config Wed, 03 Nov 1999 15:25:22 +0100 hugo (purkinje/5_Purk2M9s.p 1.2 664)
+@@ -3,3 +3,4 @@
+ iSpines 1474
+ xCellPath /Purkinje/soma[TYPE=compartment],/Purkinje/main[][TYPE=compartment],/Purkinje/b#[][TYPE=compartment]
+ xCellElements 1600
++condDescr Purk2M9s.p.condDescr
+Index: 0.39/psmall.p.config
+--- 0.39/psmall.p.config Mon, 25 Jan 1999 16:30:02 +0100 hugo (purkinje/7_psmall.p.c 1.1 664)
++++ ActivePassive.2/psmall.p.config Wed, 03 Nov 1999 15:25:22 +0100 hugo (purkinje/7_psmall.p.c 1.2 664)
+@@ -3,3 +3,4 @@
+ iSpines 142
+ xCellPath /Purkinje/soma[TYPE=compartment],/Purkinje/main[][TYPE=compartment],/Purkinje/b#[][TYPE=compartment]
+ xCellElements 176
++condDescr psmall.p.condDescr
+Index: 0.39/settings.g
+--- 0.39/settings.g Sat, 30 Oct 1999 01:44:13 +0200 hugo (purkinje/23_settings.g 1.8.2.2 644)
++++ ActivePassive.2/settings.g Wed, 03 Nov 1999 15:25:22 +0100 hugo (purkinje/23_settings.g 1.8.2.4 644)
+@@ -36,6 +36,137 @@
+ 
+ 
+ ///
++/// SH:	SettingsActivePassive
++///
++/// PA:	model.:	0 : passive model
++///		1 : active model
++///
++/// DE:	Switch active/passive model
++///	Uses tabchan file giving maximal conductances that is registered in the
++///	config element.
++///	Depends on the fact that the number of tabchan element in the 
++///	descriptor file is the same as the number of tabchan elements in the
++///	cell in {cellpath}
++///
++
++function SettingsActivePassive(model)
++
++int model
++
++	//- give diag's
++
++	echo "Updating tabchannels..." -n
++
++	//- if going to passive model
++
++	if ( model == 0)
++
++		//- loop over all tabchannels
++
++		str tabchan
++
++		foreach tabchan ( { el {cellpath}/##[][TYPE=tabchannel] } )
++
++			//- HGET values from solver
++
++			call solve HGET {tabchan}
++
++			//- set maximal conductance to zero
++
++			setfield {tabchan} Gbar 0.0
++
++			//- HPUT the value into the solver
++
++			call solve HPUT {tabchan}
++		end
++
++	//- if going to active model
++
++	elif ( model == 1)
++
++		//v line from file
++
++		str argline
++
++		//- get filename
++
++		str filename = {getfield /config condDescr}
++
++		//- open the tabchan max conductance file
++
++		openfile {filename} r
++
++		//- read count from file
++
++		int iFileCount = {readfile {filename}}
++
++		//- loop over all tabchannels
++
++		int iCount = 0
++
++		str tabchan
++
++		foreach tabchan ( { el {cellpath}/##[][TYPE=tabchannel] } )
++
++			//- HGET values from solver
++
++			call solve HGET {tabchan}
++
++			//- read line with element field
++
++			argline = {readfile {filename} -line}
++
++			//- set read field of read element to read value
++
++			setfield \
++				{getarg {arglist {argline}} -arg 1} \
++				{getarg {arglist {argline}} -arg 2} \
++				{getarg {arglist {argline}} -arg 3}
++
++			//- HPUT the value into the solver
++
++			call solve HPUT {tabchan}
++
++			//- increment count
++
++			iCount = {iCount + 1}
++		end
++
++		//- close the tabchan file
++
++		closefile {filename}
++
++		//- sanity check on actual count and file count
++
++		//t this can still fail if the number of channels in the file
++		//t is less than the number of channels in the cell.
++		//t genesis doesn't provide a eof check...
++
++		if ( {iFileCount} != {iCount} )
++
++			echo "Warning : Number of channels in channel" -n
++			echo "description file is different from"
++			echo "Warning : number of channels in simulated cell."
++			echo "Warning : read("{iCount}"), " -n 
++			echo "file gives ("{iFileCount}")."
++		end
++
++	//- else somebody messed up
++
++	else
++
++		//- give diag's
++
++		echo "Somebody messed up the code"
++	end
++
++	//- end diag's
++
++	echo "done"
++end
++
++
++///
+ /// SH:	SettingsBasket
+ ///
+ /// DE:	display and handle settings for basket firing
+@@ -1709,6 +1840,60 @@
+ 	//- create the form for vivo settings
+ 
+ 	SettingsVivoCreate /settings/
++end
++
++
++///
++/// SH:	UpdateTabChanMaxG
++///
++/// PA:	filename.: file to write conductance table to
++///
++/// DE: Update tabchans maximal conductances
++///	Write maximal conductances for all tabchans in {cellpath} to file
++///	given by {filename}, preceded by the element name and Gbar. Order of
++///	writing is determined by genesis expanding a wildcard argument.
++///
++/// NO: This function should modified to be a one parameter general purpose
++///	routine.
++///
++
++function UpdateTabChanMaxG(filename)
++
++str filename
++
++	//- open the file for writing
++
++	openfile {filename} w
++
++	//- count tabchans
++
++	int iCount = 0
++
++	str tabchan
++
++	foreach tabchan ( { el /Purkinje/##[][TYPE=tabchannel] } )
++
++		iCount = {iCount + 1}
++	end
++
++	//- write count to file
++
++	writefile {filename} {iCount}
++
++	//- loop over all tabchans
++
++	str tabchan
++
++	foreach tabchan ( { el {cellpath}/##[][TYPE=tabchannel] } )
++
++		//- write line to file
++
++		writefile {filename} {tabchan}" Gbar "{getfield {tabchan} Gbar}
++	end
++
++	//- close file
++
++	closefile {filename}
+ end
+ 
+ 
+Index: 0.39/makeconfig.g
+--- 0.39/makeconfig.g Fri, 26 Feb 1999 22:28:35 +0100 hugo (purkinje/27_makeconfig 1.3 644)
++++ ActivePassive.2/makeconfig.g Wed, 03 Nov 1999 15:25:22 +0100 hugo (purkinje/27_makeconfig 1.3.1.1 644)
+@@ -56,6 +56,10 @@
+ 
+ int iChanMode = 5
+ 
++//- set default model : active model
++
++int iActivePassive = 1
++
+ //- set default mode : in vitro
+ 
+ int iVVMode = 0
+Index: 0.39/control.g
+--- 0.39/control.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/31_control.g 1.14.1.1.2.1 664)
++++ ActivePassive.2/control.g Wed, 03 Nov 1999 15:25:22 +0100 hugo (purkinje/31_control.g 1.14.1.1.2.3 664)
+@@ -352,6 +352,7 @@
+ ///
+ /// PA: mode..:	1 change in vivo / vitro mode
+ ///		2 change in current injection
++///		3 change active - passive model
+ ///
+ /// DE:	toggle the simulation mode
+ ///	reflects changes in the toggle buttons
+@@ -447,13 +448,13 @@
+ 
+ 			echo "Switching off current injection"
+ 
+-			//- switch off current mode
++			//- remember we switched off current mode
+ 
+ 			iCurrentMode = 0
+ 
+ 			//- switch off pulse generator
+ 
+-			SettingsIClampSwitch
++			SettingsIClampSwitch 0
+ 
+ 		//- else (we are not in current injection mode)
+ 
+@@ -463,13 +464,60 @@
+ 
+ 			echo "Switching on current injection"
+ 
+-			//- switch on current mode
++			//- remember we switched on current mode
+ 
+ 			iCurrentMode = 1
+ 
+ 			//- switch on pulse generator
+ 
+-			SettingsIClampSwitch
++			SettingsIClampSwitch 1
++		end
++
++	//- else if we have a change in active/passive model
++
++	elif (mode == 3)
++
++		//- if we are in current injection mode
++
++		if (iActivePassive == 1)
++
++			//- give a discriptive message
++
++			echo "Switching to passive model"
++
++			//- remember we switched to passive model
++
++			iActivePassive = 0
++
++			//- switch to passive model
++
++			SettingsActivePassive 0
++
++			//- update label
++
++			setfield /control/activePassiveLabel \
++				title "Passive"
++
++		//- else (we are not in current injection mode)
++
++		else
++
++			//- give a discriptive message
++
++			echo "Switching to active model"
++
++			//- remember we switched to active model
++
++			iActivePassive = 1
++
++			//- switch to active model
++
++			SettingsActivePassive 1
++
++			//- update label
++
++			setfield /control/activePassiveLabel \
++				title "Active"
+ 		end
+ 
+ 	//- else no mode is possible
+@@ -573,7 +621,7 @@
+ 
+ 	//- create form for control panel
+ 
+-	create xform /control [0, 490, 300, 340]
++	create xform /control [0, 490, 300, 360]
+ 	
+ 	//- make it the current element
+ 
+@@ -670,9 +718,33 @@
+ 	create xlabel mode \
+ 		-label "Simulation mode"
+ 
++	//- create the active/passive button
++
++	create xbutton activePassive \
++		-wgeom 30% \
++		-title "Toggle" \
++		-script "ToggleMode 3"
++
++	//- create the active/passive label
++
++	create xlabel activePassiveLabel \
++		-xgeom 0:last.right \
++		-ygeom 2:mode \
++		-wgeom 40% \
++		-title "Active"
++
++	//- create a no active/passive settings label
++
++	create xlabel noactivePassiveSettings \
++		-xgeom 0:activePassiveLabel \
++		-ygeom 2:mode \
++		-wgeom 30% \
++		-title "No settings"
++
+ 	//- create the vivo/vitro button
+ 
+ 	create xbutton vivoVitro \
++		-ygeom 0:activePassive \
+ 		-wgeom 30% \
+ 		-title "Toggle" \
+ 		-script "ToggleMode 1"
+@@ -681,7 +753,7 @@
+ 
+ 	create xlabel vivoVitroLabel \
+ 		-xgeom 0:last.right \
+-		-ygeom 2:mode \
++		-ygeom 2:activePassive \
+ 		-wgeom 40% \
+ 		-title "In vitro"
+ 
+@@ -689,7 +761,7 @@
+ 
+ 	create xbutton vivoSettings \
+ 		-xgeom 0:last.right \
+-		-ygeom 0:mode \
++		-ygeom 0:activePassive \
+ 		-wgeom 30% \
+ 		-title "Settings" \
+ 		-script "SettingsVivo"
+@@ -702,7 +774,7 @@
+ 
+ 	create xlabel noVitroSettings \
+ 		-xgeom 0:vivoVitroLabel \
+-		-ygeom 2:mode \
++		-ygeom 2:activePassive \
+ 		-wgeom 30% \
+ 		-title "No settings"
+ 
+Index: 0.39/config.g
+--- 0.39/config.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/32_config.g 1.7 644)
++++ ActivePassive.2/config.g Wed, 03 Nov 1999 15:25:22 +0100 hugo (purkinje/32_config.g 1.8 644)
+@@ -30,6 +30,9 @@
+ 	include_config = 1
+ 
+ 
++//include settings.g
++
++
+ ///
+ /// SH:	ConfigFilename
+ ///
+@@ -143,7 +146,8 @@
+ 	//{
+ 	//1 first declare locals for all config settings
+ 	//2 determine the value for all config settings
+-	//3 write all locals to config file
++	//3 resolve dependencies
++	//4 write all locals to config file
+ 	//}
+ 
+ 	//- create a filename for the config file
+@@ -174,6 +178,10 @@
+ 
+ 	int xCellElements = 0
+ 
++	//v file with tabchan maximal conductances
++
++	str condDescr
++
+ 	//2 determine the value for all config settings
+ 
+ 	//- determine type of host
+@@ -216,7 +224,21 @@
+ 
+ 	end
+ 
+-	//3 write all locals to config file
++	//- set the conductance file
++
++	condDescr = { {cell} @ ".condDescr" }
++
++	//3 resolve dependencies
++
++	//- give diagnostics
++
++	echo "Creating tabchannel table ("{condDescr}")"
++
++	//- update tabchans maximal conductances
++
++	callfunc UpdateTabChanMaxG {condDescr}
++
++	//4 write all locals to config file
+ 
+ 	//- open config file for output
+ 
+@@ -242,6 +264,10 @@
+ 
+ 	writefile {filename} "xCellElements" {xCellElements}
+ 
++	//- write tabchan filename
++
++	writefile {filename} "condDescr" {condDescr}
++
+ 	//- close config file
+ 
+ 	closefile {filename}
+@@ -414,6 +440,10 @@
+ 
+ 	int xCellElements
+ 
++	//v file with tabchan maximal conductances
++
++	str condDescr
++
+ 	//2 read all locals from config file
+ 
+ 	//- open the config file
+@@ -484,6 +514,14 @@
+ 
+ 	xCellElements = {getarg {arglist {argline}} -arg 2}
+ 
++	//- read line with conductances
++
++	argline = {readfile {filename} -line}
++
++	//- set filename for conductances
++
++	condDescr = {getarg {arglist {argline}} -arg 2}
++
+ 	//3 set the value for all config settings
+ 
+ 	//- create a configuration element
+@@ -515,6 +553,11 @@
+ 	addfield /config \
+ 		xCellElements -description "Number of elements in xcell"
+ 
++	//- add a field for max conductances of tabchans
++
++	addfield /config \
++		condDescr -description "Filename with tabchan max conductance"
++
+ 	//- set the config values
+ 
+ 	setfield /config \
+@@ -522,7 +565,8 @@
+ 		hostType {hostType} \
+ 		iSpines {iSpines} \
+ 		xCellPath {xCellPath} \
+-		xCellElements {xCellElements}
++		xCellElements {xCellElements} \
++		condDescr {condDescr}
+ 
+ 	//- close the config file
+ 
+Index: 0.39/TUTORIAL.g
+--- 0.39/TUTORIAL.g Thu, 01 Apr 1999 16:49:42 +0200 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6 640)
++++ ActivePassive.2/TUTORIAL.g Tue, 02 Nov 1999 23:29:09 +0100 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6.2.1 640)
+@@ -55,6 +55,10 @@
+ 
+ int iChanMode = 5
+ 
++//- set default model : active model
++
++int iActivePassive = 1
++
+ //- set default mode : in vitro
+ 
+ int iVVMode = 0

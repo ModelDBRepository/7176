@@ -1,0 +1,1691 @@
+prcs: Producing diffs from 0.55 to AnyChanMode.2.
+Index: 0.55/xgraph.g
+--- 0.55/xgraph.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/20_xgraph.g 1.13.1.1.1.1.2.1 644)
++++ AnyChanMode.2/xgraph.g Fri, 10 Mar 2000 16:16:46 +0100 hugo (purkinje/20_xgraph.g 1.13.1.1.1.1.2.1.1.1 644)
+@@ -349,7 +349,7 @@
+ 
+ 	//- if flags say compartmental output
+ 
+-	if (xcOutputFlags == 1)
++	if (xcOutputFlags == 1 || xcOutputFlags == 8)
+ 
+ 		//- if the specified element exists
+ 
+@@ -361,16 +361,31 @@
+ 				"source is '(compartment)', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
++
++			if (iChanMode < 2)
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{comp} \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++				//- add message from element to graph
++
++				addmsg {comp} /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{comp} \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 			//echo {comp} {compTail} {index}
+ 			//echo {plotTitle}"_"{xcOutputValue}
+@@ -433,16 +448,32 @@
+ 				"source is '"{source}"', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{path}/{source} \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++			if (iChanMode < 2)
++
++				//- add message from element to graph
++
++				addmsg {path}/{source} /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{path}/{source} \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 		//- else inform the user
+ 
+@@ -506,16 +537,32 @@
+ 				"source is '"{spineHead}{source}"', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
++
++			if (iChanMode < 2)
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{spineHead}{source} \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++				//- add message from element to graph
++
++				addmsg {spineHead}{source} /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{spineHead}{source} \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 		//- else if we can find a climbing fiber input
+ 
+@@ -527,16 +574,32 @@
+ 				"source is 'climb', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
++
++			if (iChanMode < 2)
++
++				//- add message from element to graph
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{comp}/climb \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++				addmsg {comp}/climb /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{comp}/climb \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 		//- else inform the user
+ 
+@@ -567,16 +630,32 @@
+ 				"source is 'stell', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
++
++			if (iChanMode < 2)
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{comp}/stell \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++				//- add message from element to graph
++
++				addmsg {comp}/stell /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{comp}/stell \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 		//- else if we can find a stellate 1 cell
+ 
+@@ -588,16 +667,32 @@
+ 				"source is 'stell1', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{comp}/stell1 \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++			if (iChanMode < 2)
++
++				//- add message from element to graph
++
++				addmsg {comp}/stell1 /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{comp}/stell1 \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 		//- else if we can find a basket cell
+ 
+@@ -609,16 +704,32 @@
+ 				"source is 'basket', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
++
++			if (iChanMode < 2)
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{comp}/basket \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++				//- add message from element to graph
++
++				addmsg {comp}/basket /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{comp}/basket \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 		//- else inform the user
+ 
+@@ -649,16 +760,32 @@
+ 				"source is '"{xcOutputSource}"', " \
+ 				"value is '"{xcOutputValue}"'."
+ 
+-			//- add message from solver to graph
++			//- if chanmode is less than 2
+ 
+-			addmsg {path}/solve /xgraphs/graph \
+-				PLOT \
+-					{findsolvefield \
+-						{path}/solve \
+-						{comp}/{xcOutputSource} \
+-						{xcOutputValue}} \
+-					*{plotTitle} \
+-					*{color}
++			if (iChanMode < 2)
++
++				//- add message from element to graph
++
++				addmsg {comp}/{xcOutputSource} /xgraphs/graph \
++					PLOT \
++						{xcOutputValue} \
++						*{plotTitle} \
++						*{color}
++
++			//- else
++
++			else
++				//- add message from solver to graph
++
++				addmsg {path}/solve /xgraphs/graph \
++					PLOT \
++						{findsolvefield \
++							{path}/solve \
++							{comp}/{xcOutputSource} \
++							{xcOutputValue}} \
++						*{plotTitle} \
++						*{color}
++			end
+ 
+ 			//echo {comp} {compTail} {index}
+ 			//echo {plotTitle}"_"{xcOutputValue}
+@@ -1471,6 +1598,15 @@
+ 
+ 		setfield /xgraphs/graph \
+ 			title {xcOutputValue}
++
++	//- if output is comp. Im
++
++	elif (xcOutputFlags == 8)
++
++		//- set title
++
++		setfield /xgraphs/graph \
++			title "Compartmental membrane current"
+ 
+ 	end
+ 
+Index: 0.55/xcell.g
+--- 0.55/xcell.g Wed, 29 Dec 1999 21:02:32 +0100 hugo (purkinje/21_xcell.g 1.1.1.6.1.5.2.6.1.1 644)
++++ AnyChanMode.2/xcell.g Fri, 10 Mar 2000 16:16:46 +0100 hugo (purkinje/21_xcell.g 1.1.1.6.1.5.2.6.1.1.1.1 644)
+@@ -523,22 +523,58 @@
+ 
+ 	if (state)
+ 
+-		//- switch to chanmode 5
++		//- if chanmode is 4
+ 
+-		iChanMode = 5
++		if (iChanMode == 4)
+ 
+-		setfield {cellpath}/solve \
+-			chanmode {iChanMode}
++			//- switch to chanmode 5
++
++			iChanMode = 5
++
++			setfield {cellpath}/solve \
++				chanmode {iChanMode}
++
++		//- else if chanmode 0,1
++
++		elif (iChanMode == 0 || iChanMode == 1)
++
++			//- switch on Im computation
++
++			setfield {cellpath}/solve \
++				computeIm 1
++
++			//- reset simulation
++
++			reset
++		end
+ 
+ 	//- else
+ 
+ 	else
+-		//- switch to chanmode 4
++		//- if chanmode is 5
++
++		if (iChanMode == 5)
++
++			//- switch to chanmode 4
++
++			iChanMode = 4
++
++			setfield {cellpath}/solve \
++				chanmode {iChanMode}
++
++		//- else if chanmode 0,1
++
++		elif (iChanMode == 0 || iChanMode == 1)
++
++			//- switch off Im computation
++
++			setfield {cellpath}/solve \
++				computeIm 0
+ 
+-		iChanMode = 4
++			//- reset simulation
+ 
+-		setfield {cellpath}/solve \
+-			chanmode {iChanMode}
++			reset
++		end
+ 	end
+ 
+ 	//- get name for boundary element
+@@ -637,35 +673,73 @@
+ //		break
+ //	end
+ 
+-	//- loop over all elements in the xcell object
++	//- if chanmode is less than 2
+ 
+-	str element
++	if (iChanMode < 2)
+ 
+-	foreach element ( { el { wPath } } )
++		//- loop over all elements in the xcell object
+ 
+-		//- if the source elements exists
++		str element
+ 
+-		if ( {exists {element}/{source}} )
++		foreach element ( { el { wPath } } )
+ 
+-			//echo Exists : {element}/{source}
++			//- if the source elements exists
+ 
+-			//- find solve field and add the message
++			if ( {exists {element}/{source}} )
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{element}/{source} \
+-					{value}}
++				//echo Exists : {element}/{source}
+ 
+-		//- else the element does not exist
++				//- find solve field and add the message
+ 
+-		else
++				addmsg {element}/{source} /xcell/draw/xcell1 \
++					COLOR {value}
++
++			//- else the element does not exist
++
++			else
+ 
+-			//echo Non existent : {element}/{source}
++				//echo Non existent : {element}/{source}
+ 
+-			//- add a dummy message
++				//- add a dummy message
+ 
+-			addmsg /config /xcell/draw/xcell1 COLOR z
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
++		end
++
++	//- else
++
++	else
++
++		//- loop over all elements in the xcell object
++
++		str element
++
++		foreach element ( { el { wPath } } )
++
++			//- if the source elements exists
++
++			if ( {exists {element}/{source}} )
++
++				//echo Exists : {element}/{source}
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{element}/{source} \
++						{value}}
++
++			//- else the element does not exist
++
++			else
++
++				//echo Non existent : {element}/{source}
++
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
+ 		end
+ 	end
+ 
+@@ -703,35 +777,73 @@
+ 
+ 	echo "Setting up messages to xcell for (compartments), "{value}
+ 
+-	//- loop over all elements in the xcell object
++	//- if chanmode is less than 2
+ 
+-	str element
++	if (iChanMode < 2)
+ 
+-	foreach element ( { el { wPath } } )
++		//- loop over all elements in the xcell object
+ 
+-		//- if the source elements exists
++		str element
+ 
+-		if ( {exists {element}} )
++		foreach element ( { el { wPath } } )
+ 
+-			//echo Exists : {element}
++			//- if the source elements exists
+ 
+-			//- find solve field and add the message
++			if ( {exists {element}} )
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{element} \
+-					{value}}
++				//echo Exists : {element}
+ 
+-		//- else the element does not exist
++				//- find solve field and add the message
+ 
+-		else
++				addmsg {element} /xcell/draw/xcell1 \
++					COLOR {value}
++
++			//- else the element does not exist
+ 
+-			//echo Non existent : {element}
++			else
+ 
+-			//- add a dummy message
++				//echo Non existent : {element}
+ 
+-			addmsg /config /xcell/draw/xcell1 COLOR z
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
++		end
++
++	//- else
++
++	else
++
++		//- loop over all elements in the xcell object
++
++		str element
++
++		foreach element ( { el { wPath } } )
++
++			//- if the source elements exists
++
++			if ( {exists {element}} )
++
++				//echo Exists : {element}
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{element} \
++						{value}}
++
++			//- else the element does not exist
++
++			else
++
++				//echo Non existent : {element}
++
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
+ 		end
+ 	end
+ 
+@@ -770,75 +882,156 @@
+ 	echo "Setting up messages to xcell for " \
+ 		{source}", "{value}
+ 
+-	//- loop over all elements in the xcell object
++	//- if chanmode is less than 2
+ 
+-	str element
++	if (iChanMode < 2)
+ 
+-	foreach element ( { el { wPath } } )
++		//- loop over all elements in the xcell object
+ 
+-		//- get the spine that gives messages to the element
++		str element
+ 
+-		str spine = {getmsg {element} -outgoing -destination 7}
++		foreach element ( { el { wPath } } )
+ 
+-		//- get tail of spine
++			//- get the spine that gives messages to the element
+ 
+-		str spineTail = {getpath {spine} -tail}
++			str spine = {getmsg {element} -outgoing -destination 7}
+ 
+-		//- get head of spine for use with solver's flat space
++			//- get tail of spine
+ 
+-		str spineHead = {getpath {spine} -head}
++			str spineTail = {getpath {spine} -tail}
+ 
+-		//- if we are handling a spine
++			//- get head of spine for use with solver's flat space
+ 
+-		if ( {strncmp {spineTail} "spine" 5} == 0 )
++			str spineHead = {getpath {spine} -head}
+ 
+-			//- default index is zero
++			//- if we are handling a spine
+ 
+-			source = "head[0]/par"
++			if ( {strncmp {spineTail} "spine" 5} == 0 )
+ 
+-			//- if an index is available
++				//- default index is zero
+ 
+-			if ( {strlen {spineTail}} != 5 )
++				source = "head[0]/par"
+ 
+-				//- get index of synapse
++				//- if an index is available
+ 
+-				int synapseIndex \
+-					= {substring \
+-						{spineTail} \
+-						6 \
+-						{{strlen {spineTail}} - 1}}
++				if ( {strlen {spineTail}} != 5 )
+ 
+-				//- make source string with index
++					//- get index of synapse
+ 
+-				source = "head[" @ {synapseIndex} @ "]/par"
++					int synapseIndex \
++						= {substring \
++							{spineTail} \
++							6 \
++							{{strlen {spineTail}} \
++								- 1}}
++
++					//- make source string with index
++
++					source = {"head[" \
++							@ {synapseIndex} \
++							@ "]/par"}
++				end
++
++				//- find solve field and add the message
++
++				addmsg {spineHead}{source} /xcell/draw/xcell1 \
++					COLOR {value}
++
++			//- else if we can find a climbing fiber input
++
++			elif ( {exists {element}/climb } )
++
++				//- find solve field and add the message
++
++				addmsg {element}/climb /xcell/draw/xcell1 \
++					COLOR {value}
++
++			//- else the element does not exist
++
++			else
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
+ 			end
++		end
++
++	//- else
++
++	else
+ 
+-			//- find solve field and add the message
++		//- loop over all elements in the xcell object
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{spineHead}{source} \
+-					{value}}
++		str element
+ 
+-		//- else if we can find a climbing fiber input
++		foreach element ( { el { wPath } } )
+ 
+-		elif ( {exists {element}/climb } )
++			//- get the spine that gives messages to the element
+ 
+-			//- find solve field and add the message
++			str spine = {getmsg {element} -outgoing -destination 7}
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{element}/climb \
+-					{value}}
++			//- get tail of spine
+ 
+-		//- else the element does not exist
++			str spineTail = {getpath {spine} -tail}
+ 
+-		else
+-			//- add a dummy message
++			//- get head of spine for use with solver's flat space
++
++			str spineHead = {getpath {spine} -head}
++
++			//- if we are handling a spine
++
++			if ( {strncmp {spineTail} "spine" 5} == 0 )
++
++				//- default index is zero
++
++				source = "head[0]/par"
++
++				//- if an index is available
++
++				if ( {strlen {spineTail}} != 5 )
++
++					//- get index of synapse
++
++					int synapseIndex \
++						= {substring \
++							{spineTail} \
++							6 \
++							{{strlen {spineTail}} \
++								- 1}}
++
++					//- make source string with index
++
++					source = {"head[" \
++							@ {synapseIndex} \
++							@ "]/par"}
++				end
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{spineHead}{source} \
++						{value}}
++
++			//- else if we can find a climbing fiber input
++
++			elif ( {exists {element}/climb } )
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{element}/climb \
++						{value}}
+ 
+-			addmsg /config /xcell/draw/xcell1 COLOR z
++			//- else the element does not exist
++
++			else
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
+ 		end
+ 	end
+ 
+@@ -877,54 +1070,104 @@
+ 	echo "Setting up messages to xcell for " \
+ 		{source}", "{value}
+ 
+-	//- loop over all elements in the xcell object
++	//- if chanmode is less than 2
+ 
+-	str element
++	if (iChanMode < 2)
+ 
+-	foreach element ( { el { wPath } } )
++		//- loop over all elements in the xcell object
+ 
+-		//- if we are handling a stellate cell
++		str element
+ 
+-		if ( {exists {element}/stell} )
++		foreach element ( { el { wPath } } )
+ 
+-			//- find solve field and add the message
++			//- if we are handling a stellate cell
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{element}/stell \
+-					{value}}
++			if ( {exists {element}/stell} )
+ 
+-		//- else if we can find a stellate 1 cell
++				//- find solve field and add the message
+ 
+-		elif ( {exists {element}/stell1 } )
++				addmsg {element}/stell /xcell/draw/xcell1 \
++					COLOR {value}
+ 
+-			//- find solve field and add the message
++			//- else if we can find a stellate 1 cell
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{element}/stell1 \
+-					{value}}
++			elif ( {exists {element}/stell1 } )
+ 
+-		//- else if we can find a basket cell
++				//- find solve field and add the message
+ 
+-		elif ( {exists {element}/basket } )
++				addmsg {element}/stell1 /xcell/draw/xcell1 \
++					COLOR {value}
+ 
+-			//- find solve field and add the message
++			//- else if we can find a basket cell
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{element}/basket \
+-					{value}}
++			elif ( {exists {element}/basket } )
+ 
+-		//- else no inhibitory channel exists
++				//- find solve field and add the message
+ 
+-		else
+-			//- add a dummy message
++				addmsg {element}/basket /xcell/draw/xcell1 \
++					COLOR {value}
+ 
+-			addmsg /config /xcell/draw/xcell1 COLOR z
++			//- else no inhibitory channel exists
++
++			else
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
++		end
++
++	//- else
++
++	else
++		//- loop over all elements in the xcell object
++
++		str element
++
++		foreach element ( { el { wPath } } )
++
++			//- if we are handling a stellate cell
++
++			if ( {exists {element}/stell} )
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{element}/stell \
++						{value}}
++
++			//- else if we can find a stellate 1 cell
++
++			elif ( {exists {element}/stell1 } )
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{element}/stell1 \
++						{value}}
++
++			//- else if we can find a basket cell
++
++			elif ( {exists {element}/basket } )
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{element}/basket \
++						{value}}
++
++			//- else no inhibitory channel exists
++
++			else
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
+ 		end
+ 	end
+ 
+@@ -963,65 +1206,134 @@
+ 	echo "Setting up spine compartment messages to xcell for " \
+ 		{source}", "{value}
+ 
+-	//- loop over all elements in the xcell object
++	//- if chanmode is less than 2
+ 
+-	str element
++	if (iChanMode < 2)
++
++		//- loop over all elements in the xcell object
+ 
+-	foreach element ( { el { wPath } } )
++		str element
+ 
+-		//- get the spine that gives messages to the element
++		foreach element ( { el { wPath } } )
+ 
+-		str spine = {getmsg {element} -outgoing -destination 7}
++			//- get the spine that gives messages to the element
+ 
+-		//- get tail of spine
++			str spine = {getmsg {element} -outgoing -destination 7}
+ 
+-		str spineTail = {getpath {spine} -tail}
++			//- get tail of spine
+ 
+-		//- get head of spine for use with solver's flat space
++			str spineTail = {getpath {spine} -tail}
+ 
+-		str spineHead = {getpath {spine} -head}
++			//- get head of spine for use with solver's flat space
+ 
+-		//- if we are handling a spine
++			str spineHead = {getpath {spine} -head}
+ 
+-		if ( {strncmp {spineTail} "spine" 5} == 0 )
++			//- if we are handling a spine
+ 
+-			//- default index is zero
++			if ( {strncmp {spineTail} "spine" 5} == 0 )
+ 
+-			source = "head[0]"
++				//- default index is zero
+ 
+-			//- if an index is available
++				source = "head[0]"
+ 
+-			if ( {strlen {spineTail}} != 5 )
++				//- if an index is available
+ 
+-				//- get index of synapse
++				if ( {strlen {spineTail}} != 5 )
+ 
+-				int synapseIndex \
+-					= {substring \
+-						{spineTail} \
+-						6 \
+-						{{strlen {spineTail}} - 1}}
++					//- get index of synapse
+ 
+-				//- make source string with index
++					int synapseIndex \
++						= {substring \
++							{spineTail} \
++							6 \
++							{{strlen {spineTail}} \
++								- 1}}
+ 
+-				source = "head[" @ {synapseIndex} @ "]"
++					//- make source string with index
++
++					source = "head[" @ {synapseIndex} @ "]"
++				end
++
++				//echo {spineHead}{source} {value}
++
++				//- find solve field and add the message
++
++				addmsg {spineHead}{source} /xcell/draw/xcell1 \
++					COLOR {value}
++
++			//- else the element does not exist
++
++			else
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
+ 			end
++		end
+ 
+-			//echo {spineHead}{source} {value}
++	//- else
+ 
+-			//- find solve field and add the message
++	else
++		//- loop over all elements in the xcell object
+ 
+-			addmsg {cellpath}/solve /xcell/draw/xcell1 \
+-				COLOR {findsolvefield \
+-					{cellpath}/solve \
+-					{spineHead}{source} \
+-					{value}}
++		str element
+ 
+-		//- else the element does not exist
++		foreach element ( { el { wPath } } )
+ 
+-		else
+-			//- add a dummy message
++			//- get the spine that gives messages to the element
++
++			str spine = {getmsg {element} -outgoing -destination 7}
++
++			//- get tail of spine
++
++			str spineTail = {getpath {spine} -tail}
++
++			//- get head of spine for use with solver's flat space
++
++			str spineHead = {getpath {spine} -head}
++
++			//- if we are handling a spine
+ 
+-			addmsg /config /xcell/draw/xcell1 COLOR z
++			if ( {strncmp {spineTail} "spine" 5} == 0 )
++
++				//- default index is zero
++
++				source = "head[0]"
++
++				//- if an index is available
++
++				if ( {strlen {spineTail}} != 5 )
++
++					//- get index of synapse
++
++					int synapseIndex \
++						= {substring \
++							{spineTail} \
++							6 \
++							{{strlen {spineTail}} \
++								- 1}}
++
++					//- make source string with index
++
++					source = "head[" @ {synapseIndex} @ "]"
++				end
++
++				//echo {spineHead}{source} {value}
++
++				//- find solve field and add the message
++
++				addmsg {cellpath}/solve /xcell/draw/xcell1 \
++					COLOR {findsolvefield \
++						{cellpath}/solve \
++						{spineHead}{source} \
++						{value}}
++
++			//- else the element does not exist
++
++			else
++				//- add a dummy message
++
++				addmsg /config /xcell/draw/xcell1 COLOR z
++			end
+ 		end
+ 	end
+ 
+@@ -1048,6 +1360,7 @@
+ ///		5	nernst E
+ ///		6	Calcium concen Ca
+ /// 		7	inhibitory channel with IGE
++///		8	comp. Im
+ ///
+ /// DE:	Display the buttons according to the output mode
+ ///
+@@ -1065,11 +1378,12 @@
+ 		title {getfield /xcell outputDescription}
+ 
+ 	//- comp. Vm
++	//- comp. Im
+ 	//- or spine comp. Vm
+ 	//- or nernst E
+ 	//- or Calcium concen Ca
+ 
+-	if (mode == 1 || mode == 4 || mode == 5 || mode == 6)
++	if (mode == 1 || mode == 4 || mode == 5 || mode == 6 || mode == 8)
+ 
+ 		//- hide I,G toggles
+ 
+@@ -1218,6 +1532,7 @@
+ 	//= 5	nernst E
+ 	//= 6	Calcium concen Ca
+ 	//= 7	inhibitory channel with IGE
++	//= 8	comp. Im
+ 
+ 	int flButtons = 0
+ 
+@@ -1406,6 +1721,30 @@
+ 
+ 		flButtons = 7
+ 
++	//- if we are dealing with compartmental membrane current
++
++	elif (parameters == "Im")
++
++		//- the description is compartmental membrane current
++
++		msgDescription = "Compartmental membrane current"
++
++		//- the source is empty
++
++		msgSource = ""
++
++		//- the value is Vm
++
++		msgValue = "Im"
++
++		//- remember to continue
++
++		bContinue = 1
++
++		//- set flags for buttons
++
++		flButtons = 8
++
+ 	//- else somebody messed up the code
+ 
+ 	else
+@@ -1421,7 +1760,7 @@
+ 
+ 		//- if we are handling compartments
+ 
+-		if (flButtons == 1)
++		if (flButtons == 1 || flButtons == 8)
+ 
+ 			//- setup messages for compartments
+ 
+@@ -1809,6 +2148,23 @@
+ 	setfield ^ \
+ 		parameters "Vm"
+ 
++	//- if chanmode < 2
++
++	if (iChanMode < 2)
++
++		//- create addition button for Im
++
++		create xtoggle /xcell/compIm \
++			-xgeom 70% \
++			-wgeom 20% \
++			-title "Comp. Im" \
++			-script "XCellSetOutput <w>"
++		addfield ^ \
++			parameters -description "parameters for messages"
++		setfield ^ \
++			parameters "Im"
++	end
++
+ 	create xtoggle /xcell/Caconcen \
+ 		-title "Comp. Ca" \
+ 		-xgeom 70% \
+@@ -1970,16 +2326,33 @@
+ 		-wgeom 30% \
+ 		-title ""
+ 
+-	//- create toggle to change normalized / absolute output
++	//- if chanmode < 2
+ 
+-	create xtoggle /xcell/chanmode \
+-		-xgeom 70% \
+-		-ygeom 6:last.top \
+-		-wgeom 30% \
+-		-title "" \
+-		-onlabel "Normalized" \
+-		-offlabel "Absolute" \
+-		-script "XCellSwitchChanMode <v>"
++	if (iChanMode < 2)
++
++		//- create toggle for calculating Im
++
++		create xtoggle /xcell/chanmode \
++			-xgeom 70% \
++			-ygeom 6:last.top \
++			-wgeom 30% \
++			-title "Compute Im" \
++			-script "XCellSwitchChanMode <v>"
++
++	//- else
++
++	else
++		//- create toggle to change normalized / absolute output
++
++		create xtoggle /xcell/chanmode \
++			-xgeom 70% \
++			-ygeom 6:last.top \
++			-wgeom 30% \
++			-title "" \
++			-onlabel "Normalized" \
++			-offlabel "Absolute" \
++			-script "XCellSwitchChanMode <v>"
++	end
+ 
+ 	//- create label with normalized / absolute description
+ 
+@@ -2155,6 +2528,70 @@
+ 
+ 
+ ///
++/// SH:	XCellCBPlotIm
++///
++/// PA:	path..:	path to the clicked compartment
++///
++/// DE:	Callback to add Im of compartment to graph
++///
++
++function XCellCBPlotIm(path)
++
++str path
++
++	//- allocate next color
++
++	callfunc "XGraphNextColor"
++
++	//! the field cNextColor should be considered private,
++	//! but read the comments below to understand why I had to
++	//! read it as if it is public.
++
++	//- get allocated color
++
++	int color = {getfield /xgraphs/graph cNextColor}
++
++	//! genesis callfunc cannot handle strings nor can it handle ints
++	//! so the return value gets lost for the if statement
++
++	// get name of electrode
++
++	//str electrode = {XCellElectrodeName {path}}
++
++	//- get the electrode name
++
++	str electrode = {XGraphPlotTitle \
++				{path} \
++				"" \
++				"Im" \
++				1}
++
++	//- if the electrode exists
++
++	if ( {exists /electrodes/draw/{electrode}} )
++
++		//- give diagnostics
++
++		echo {electrode}" is already a recording site"
++
++	//- else
++
++	else
++		//- add plot for clicked compartment
++
++		callfunc "XGraphPlotCompartment" /Purkinje {path} {color}
++
++		if ( {bXGraphPlotCompartmentResult} )
++
++			//- add electrode for the compartment
++
++			XCellAddElectrode {path} {electrode} {color}
++		end
++	end
++end
++
++
++///
+ /// SH:	XCellCBAddPlot
+ ///
+ /// PA:	path..:	path to the clicked compartment
+@@ -2350,8 +2787,20 @@
+ 		script "XCellCBAddPlot.d1 <v> ; XCellCBRemovePlot.d3 <v>"
+ */
+ 
+-	setfield /xcell/draw/xcell1 \
+-		script "XCellCBRemovePlot.d3 <v>"
++	//- if chanmode is < 2
++
++	if (iChanMode < 2)
++
++		setfield /xcell/draw/xcell1 \
++			script "XCellCBPlotIm.d1 <v> ; XCellCBRemovePlot.d3 <v>"
++
++	//- else
++
++	else
++
++		setfield /xcell/draw/xcell1 \
++			script "XCellCBRemovePlot.d3 <v>"
++	end
+ 
+ 	//- show the output form
+ 
+Index: 0.55/settings.g
+--- 0.55/settings.g Wed, 05 Jan 2000 11:55:14 +0100 hugo (purkinje/23_settings.g 1.8.2.2.1.1.1.1.1.1 644)
++++ AnyChanMode.2/settings.g Fri, 10 Mar 2000 16:16:46 +0100 hugo (purkinje/23_settings.g 1.8.2.2.1.1.1.1.1.1.1.1 644)
+@@ -1468,9 +1468,14 @@
+ 
+ 	echo "..." -n
+ 
+-	//- put the state of the solve element into the originals
++	//- if chanmode >= 2
+ 
+-	call {cellpath}/solve HSAVE
++	if (iChanMode >= 2)
++
++		//- put the state of the solve element into the originals
++
++		call {cellpath}/solve HSAVE
++	end
+ 
+ 	//- loop over all channels that should be adjusted
+ 
+@@ -1516,9 +1521,14 @@
+ 		end
+ 	end
+ 
+-	//- update the solve object
++	//- if chanmode >= 2
+ 
+-	call {cellpath}/solve HRESTORE
++	if (iChanMode >= 2)
++
++		//- update the solve object
++
++		call {cellpath}/solve HRESTORE
++	end
+ 
+ 	//echo hide update freq
+ 
+Index: 0.55/cell.g
+--- 0.55/cell.g Wed, 05 Jan 2000 11:58:37 +0100 hugo (purkinje/33_cell.g 1.10.1.3.2.4 644)
++++ AnyChanMode.2/cell.g Fri, 10 Mar 2000 16:16:46 +0100 hugo (purkinje/33_cell.g 1.10.1.3.2.5 644)
+@@ -42,7 +42,7 @@
+ // cut off from previous cell
+ // this cell can automatically fire even without external activation
+ 
+-//str cellfile = "psmall.p"
++str cellfile = "psmall.p"
+ 
+ 
+ end
+Index: 0.55/bounds.txt
+--- 0.55/bounds.txt Thu, 18 Mar 1999 14:33:34 +0100 hugo (purkinje/34_bounds.txt 1.3 644)
++++ AnyChanMode.2/bounds.txt Fri, 10 Mar 2000 16:16:46 +0100 hugo (purkinje/34_bounds.txt 1.3.1.1 644)
+@@ -40,6 +40,7 @@
+ # 1	2	3	4	5	6	7	8	9
+ #
+ _Vm	-0.09	0.02	-0.1	0.05	-0.09	0.02	-0.1	0.05
++_Im	-2e-9	2e-9	-8e-9	8e-9	-2e-9	2e-9	-8e-9	8e-9
+ Ca_pool_Ca	0	0.001	0	0.001	0	0.001	0	0.001
+ # adapted to normalized mode
+ CaP_Ik	5e-12	3e-11	0	1e-10	0.0025	0.0015	0	0.05
+Index: 0.55/actions.g
+--- 0.55/actions.g Wed, 05 Jan 2000 11:55:14 +0100 hugo (purkinje/35_actions.g 1.13 644)
++++ AnyChanMode.2/actions.g Fri, 10 Mar 2000 16:16:46 +0100 hugo (purkinje/35_actions.g 1.14 644)
+@@ -577,18 +577,36 @@
+ 
+ 		echo "Switching to current pulses"
+ 
+-		//- set command for script object
++		//- if chanmode less than 2
+ 
+-		setfield /actions/iClamp \
+-			command {"ActionIClamp " \
+-				 @ "/actions/iClamp/current " \
+-				 @ "output " \
+-				 @ {cellpath} \
+-				 @ "/solve " \
+-				 @ {findsolvefield \
+-					{cellpath}/solve \
+-					soma \
+-					inject}}
++		if (iChanMode < 2)
++
++			//- set command for script object
++
++			setfield /actions/iClamp \
++				command {"ActionIClamp " \
++					 @ "/actions/iClamp/current " \
++					 @ "output " \
++					 @ {cellpath} \
++					 @ "/soma" \
++					 @ " inject" }
++
++		//- else
++
++		else
++			//- set command for script object
++
++			setfield /actions/iClamp \
++				command {"ActionIClamp " \
++					 @ "/actions/iClamp/current " \
++					 @ "output " \
++					 @ {cellpath} \
++					 @ "/solve " \
++					 @ {findsolvefield \
++						{cellpath}/solve \
++						soma \
++						inject}}
++		end
+ 
+ 	//- if constant current requested
+ 
+@@ -598,18 +616,36 @@
+ 
+ 		echo "Switching to constant current"
+ 
+-		//- set command for script object
++		//- if chanmode less than 2
++
++		if (iChanMode < 2)
+ 
+-		setfield /actions/iClamp \
+-			command {"ActionIClamp " \
+-				 @ "/actions/iClamp/current " \
+-				 @ "ctecurrent " \
+-				 @ {cellpath} \
+-				 @ "/solve " \
+-				 @ {findsolvefield \
+-					{cellpath}/solve \
+-					soma \
+-					inject}}
++			//- set command for script object
++
++			setfield /actions/iClamp \
++				command {"ActionIClamp " \
++					 @ "/actions/iClamp/current " \
++					 @ "ctecurrent " \
++					 @ {cellpath} \
++					 @ "/soma" \
++					 @ " inject" }
++
++		//- else
++
++		else
++			//- set command for script object
++
++			setfield /actions/iClamp \
++				command {"ActionIClamp " \
++					 @ "/actions/iClamp/current " \
++					 @ "ctecurrent " \
++					 @ {cellpath} \
++					 @ "/solve " \
++					 @ {findsolvefield \
++						{cellpath}/solve \
++						soma \
++						inject}}
++		end
+ 
+ 	//- else (illegal mode)
+ 
+@@ -642,12 +678,26 @@
+ 	setfield /actions/iClamp \
+ 		command ""
+ 
+-	//- clear inject field of soma
++	//- if chanmode less than 2
++
++	if (iChanMode < 2)
++
++		//- clear inject field of soma
+ 
+-	setfield \
+-		{cellpath}/solve \
+-		{findsolvefield {cellpath}/solve soma inject} \
+-		0
++		setfield {cellpath}/soma \
++			inject 0
++
++	//- else
++
++	else
++
++		//- clear inject field of soma
++
++		setfield \
++			{cellpath}/solve \
++			{findsolvefield {cellpath}/solve soma inject} \
++			0
++	end
+ 
+ 	// call reset on the script to avoid bugs
+ 
+Index: 0.55/TUTORIAL.g
+--- 0.55/TUTORIAL.g Tue, 04 Jan 2000 15:16:41 +0100 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6.3.1.1.1 640)
++++ AnyChanMode.2/TUTORIAL.g Fri, 10 Mar 2000 22:36:54 +0100 hugo (purkinje/36_TUTORIAL.g 1.1.1.3.1.6.3.1.1.1.1.2 640)
+@@ -53,7 +53,18 @@
+ 
+ //- set default chanmode for solver : normalized
+ 
++//! possible values : 	0-5..: solves with implicit object hsolve
++//! 			-1...: solves with explicit objects (compartments)
++
+ int iChanMode = 5
++//int iChanMode = -1
++
++//! for chanmode -1 (explicit solution method), adapt this variable
++//! implicit solution.:	dt = 2.0e-5
++//! explicit solution.:	dt = 1.0e-7
++
++float dt = 2.0e-5
++//float dt = 1.0e-7
+ 
+ //- set default mode : in vitro
+ 
+@@ -236,6 +247,14 @@
+ //      ConfigWrite {cellfile} {cellpath}
+ //end
+ 
++//- give diagnostics : starting configuration
++
++echo "Starting configuration"
++
++//- give diagnostics : chanmode to configure for
++
++echo "Configuring for chanmode "{iChanMode}
++
+ //- read configuration file
+ 
+ ConfigRead {cellfile} {cellpath}
+@@ -268,31 +287,35 @@
+ 
+ delaysteps = {delay / dt}
+ 
+-//- setup the hines solver
++//- if implicit solver requested
+ 
+-echo preparing hines solver {getdate}
+-ce {cellpath}
+-create hsolve solve
+-
+-//- We change to current element solve and then set the fields of the parent
+-//- (solve) to get around a bug in the "." parsing of genesis
+-
+-ce solve
+-
+-setfield . \
+-        path "../##[][TYPE=compartment]" \
+-        comptmode 1 \
+-        chanmode {iChanMode} \
+-        calcmode 0
+-
+-/*
+-setfield . \
+-        path "../b#[][TYPE=compartment],../main[][TYPE=compartment]" \
+-        comptmode 1 \
+-        chanmode {iChanMode} \
+-        calcmode 0
+-*/
++if (iChanMode != -1)
+ 
++	//- setup the hines solver
++
++	echo preparing hines solver {getdate}
++	ce {cellpath}
++	create hsolve solve
++
++	//- We change to current element solve and then set the fields of the
++	//- parent (solve) to get around a bug in the "." parsing of genesis
++
++	ce solve
++
++	setfield . \
++		path "../##[][TYPE=compartment]" \
++	        comptmode 1 \
++		chanmode {iChanMode} \
++	        calcmode 0
++
++	/*
++	setfield . \
++	        path "../b#[][TYPE=compartment],../main[][TYPE=compartment]" \
++	        comptmode 1 \
++	        chanmode {iChanMode} \
++	        calcmode 0
++	*/
++end
+ 
+ //- create all info widgets
+ 
+@@ -302,13 +325,34 @@
+ 
+ SettingsCreate
+ 
+-//- setup the solver with all messages from the settings
++//- if implicit solver requested
+ 
+-call /Purkinje/solve SETUP
++if (iChanMode != -1)
+ 
+-//- Use method to Crank-Nicolson
++	//! if chanmode is < 2 we can only calculate Im if this flag is on 
++	//! before SETUP. It is not possible to change this after the SETUP,
++	//! though the tutorial has partly been programmed in that way.
+ 
+-setmethod 11
++	if (iChanMode < 2)
++
++		setfield /Purkinje/solve \
++			computeIm 1
++	end
++
++	//- setup the solver with all messages from the settings
++
++	call /Purkinje/solve SETUP
++
++	if (iChanMode < 2)
++
++		setfield /Purkinje/solve \
++			computeIm 0
++	end
++
++	//- set method to Crank-Nicolson
++
++	setmethod 11
++end
+ 
+ // setup actions
+ 
+Index: 0.55/bounds.g
+--- 0.55/bounds.g Fri, 29 Oct 1999 21:02:10 +0200 hugo (purkinje/47_bounds.g 1.3 664)
++++ AnyChanMode.2/bounds.g Fri, 10 Mar 2000 16:16:46 +0100 hugo (purkinje/47_bounds.g 1.4 664)
+@@ -185,9 +185,9 @@
+ 
+ 	str bound
+ 
+-	//- if chanmode is 4
++	//- if chanmode is 4 or less
+ 
+-	if (iMode == 4)
++	if (iMode <= 4)
+ 	
+ 		//- construct element name with boundaries for absolute mode
+ 

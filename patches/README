@@ -1,0 +1,21 @@
+This directory contains various patches to some version of the
+original Purkinje cell tutorial.  Perhaps they can't be applied
+anymore perhaps they can.  The original versions that were used to
+create the patch are implied in the filename.  The last part of the
+filename gives some clue about the function change in the patch
+(e.g. the AnyChanMode patch runs the model with hsolve in any chanmode
+or even without hsolve).
+
+Take a look at the different scripts/patches and see if you can use
+them one way or the other.  No support will be given for any of the
+patches in this directory.
+
+
+A patch is typically applied with ('$' being the shell prompt)
+
+$ patch <'filename.patch' -p1
+
+
+To remove a successfully applied patch
+
+$ patch <'filename.patch' -p1 -R
