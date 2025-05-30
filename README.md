@@ -39,8 +39,8 @@ changed). Before you do so you need to reconfigure the simulation by
 running "genesis makeconfig.g". After some diagnostic messages, you
 should return to the shell prompt.
 
-For feedback write:
-Concepts and documentation: Erik de Schutter - erik@bbf.uia.ac.be
+For feedback write:  
+Concepts and documentation: Erik de Schutter - erik@bbf.uia.ac.be  
 Bugs: Hugo Cornelis - hugo@bbf.uia.ac.be
 
 Consult our webpages at bbf-www.uia.ac.be for relevant publications and
